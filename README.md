@@ -9,10 +9,11 @@ TODO Describe the project here
 
 Name | Description | Example
 :--- | :--- | :--- |
+`DEBUG` | Whether or not to enable debugging mode (off by default) | `0` or `1`
 `DATABASE_URI` | Database connection string for SQLAlchemy | `postgresql://scott:tiger@localhost/mydatabase`
 **URLs:** | |
 `PROJECT_URL` | Public URL to this service without trailing slash | `https://datahub.projectorigin.dk`
-`ACCOUNT_SERVICE_URL` | URL to AccountService without trailing slash | `https://account.projectorigin.dk`
+`ACCOUNT_SERVICE_URL` | Public URL to AccountService without trailing slash | `https://account.projectorigin.dk`
 `LEDGER_URL` | URL to Blockchain Ledger without trailing slash | `https://ledger.projectorigin.dk`
 `ENERGY_TYPE_SERVICE_URL` | URL to EnergyTypeService Ledger without trailing slash | `https://energytype.projectorigin.dk`
 **Authentication:** | |
