@@ -1,0 +1,41 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+pytest = "*"
+waitress = "*"
+gunicorn = "*"
+gevent = "*"
+eventlet = "*"
+flask = "*"
+flask-cors = "*"
+Werkzeug = "*"
+SQLAlchemy = "*"
+psycopg2 = "*"
+alembic = "*"
+marshmallow = "*"
+marshmallow_dataclass = "*"
+marshmallow_enum = "*"
+PyJWT = "*"
+cryptography = "*"
+requests = "*"
+celery = "*"
+redis = "*"
+authlib = "*"
+bip32utils = "*"
+Origin-Ledger-SDK = "*"
+sawtooth-sdk = "*"
+
+[requires]
+python_version = "3.7"
+
+[scripts]
+migrate = "alembic upgrade head"
+revision = "alembic revision --autogenerate"
+serve = "gunicorn -b 0.0.0.0:8089 datahub:app --workers 1 --worker-class gevent --worker-connections 10"
+worker = "celery worker -A datahub.pipelines -B -l info --concurrency=10"
+beat = "celery beat -A datahub.pipelines -l info"

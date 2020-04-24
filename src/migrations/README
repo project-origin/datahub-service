@@ -1,0 +1,13 @@
+Migration files are placed in versions/.
+
+First-time setup:
+
+    TODO
+
+Create a new migration file by typing:
+
+    pipenv run alembic revision --autogenerate
+
+Apply the new migration(s) to the local sqlite database by typing:
+
+    pipenv run alembic upgrade head
