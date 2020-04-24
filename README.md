@@ -11,7 +11,7 @@ Name | Description | Example
 :--- | :--- | :--- |
 `DEBUG` | Whether or not to enable debugging mode (off by default) | `0` or `1`
 `DATABASE_URI` | Database connection string for SQLAlchemy | `postgresql://scott:tiger@localhost/mydatabase`
-`DATABASE_CONN_POLL_SIZE` | Connection pool size per container | `20`
+`DATABASE_CONN_POLL_SIZE` | Connection pool size per container | `10`
 **URLs:** | |
 `PROJECT_URL` | Public URL to this service without trailing slash | `https://datahub.projectorigin.dk`
 `ACCOUNT_SERVICE_URL` | Public URL to AccountService without trailing slash | `https://account.projectorigin.dk`
