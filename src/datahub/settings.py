@@ -2,8 +2,7 @@ import os
 from datetime import date, datetime, timezone, timedelta
 
 
-# TODO Move DEBUG to environment variable (default to False)
-DEBUG = True
+DEBUG = os.environ.get('DEBUG') in ('1', 't', 'true', 'yes')
 
 # -- Project -----------------------------------------------------------------
 
