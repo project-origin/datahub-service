@@ -6,8 +6,7 @@ from enum import Enum
 from typing import List
 from datetime import datetime
 from dataclasses import dataclass, field
-from marshmallow import fields, validate
-from marshmallow_dataclass import NewType
+from marshmallow import validate
 
 from datahub.db import ModelBase
 from datahub.common import DateTimeRange
@@ -31,8 +30,8 @@ class Measurement(ModelBase):
     created = sa.Column(sa.DateTime(timezone=True), server_default=sa.func.now())
 
     gsrn = sa.Column(sa.String(), sa.ForeignKey('meteringpoint.gsrn'), index=True, nullable=False)
-    begin: datetime = sa.Column(sa.DateTime(), index=True, nullable=False)
-    end: datetime = sa.Column(sa.DateTime(), nullable=False)
+    begin: datetime = sa.Column(sa.DateTime(timezone=True), index=True, nullable=False)
+    end: datetime = sa.Column(sa.DateTime(timezone=True), nullable=False)
     amount = sa.Column(sa.Integer(), nullable=False)
 
     meteringpoint = relationship('MeteringPoint', foreign_keys=[gsrn], lazy='joined')
