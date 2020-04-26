@@ -1,3 +1,3 @@
 #!/bin/sh
-pipenv run migrate
-pipenv run production
+cd /app/migrations && pipenv run migrate
+cd /app && pipenv run production

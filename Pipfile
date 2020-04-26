@@ -30,8 +30,8 @@ Origin-Ledger-SDK = "*"
 python_version = "3.7"
 
 [scripts]
-migrate = "cd migrations && alembic upgrade head && cd .."
-revision = "cd migrations && alembic revision --autogenerate && cd .."
+migrate = "alembic upgrade head"
+revision = "alembic revision --autogenerate"
 develop = "python serve.py --port 8089"
 production = "gunicorn -b 0.0.0.0:8089 datahub:app --workers 1 --worker-class gevent --worker-connections 10"
 worker = "celery worker -A datahub.pipelines -B -l info --concurrency=10"
