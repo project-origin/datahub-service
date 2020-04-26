@@ -9,6 +9,7 @@ DEBUG = os.environ.get('DEBUG') in ('1', 't', 'true', 'yes')
 
 PROJECT_NAME = 'DataHub Service'
 PROJECT_URL = os.environ['PROJECT_URL']
+CORS_ORIGINS = os.environ['CORS_ORIGINS']
 
 
 # -- Directories/paths -------------------------------------------------------
