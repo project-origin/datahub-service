@@ -1,0 +1,38 @@
+trigger:
+- master
+
+resources:
+- repo: self
+
+variables:
+  imageName: 'projectorigin/datahub-service'
+  tag: '$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: build_and_publish
+  displayName: Build and publish
+  jobs:  
+  - job: docker_build_push
+    displayName: Docker build and push
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build docker image
+      inputs:
+        command: build
+        repository: $(imageName)
+        Dockerfile: Dockerfile.web
+        tags: |
+          latest
+          $(tag)
+    - task: Docker@2
+      displayName: Push image
+      inputs:
+        command: push
+        repository: $(imageName)
+        containerRegistry: dockerHub
+        tags: |
+          latest
+          $(tag)
