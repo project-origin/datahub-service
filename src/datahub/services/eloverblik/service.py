@@ -3,7 +3,7 @@ import marshmallow_dataclass as md
 from functools import partial
 
 from datahub.cache import redis
-from datahub.settings import ELOVERBLIK_SERVICE_URL, ELOVERBLIK_TOKEN
+from datahub.settings import ELOVERBLIK_SERVICE_URL, ELOVERBLIK_TOKEN, DEBUG
 
 from .models import (
     Scope,
@@ -39,6 +39,7 @@ class EloverblikService(object):
                 'Content-type': 'application/json',
                 'accept': 'application/json',
             },
+            verify=not DEBUG,
         )
 
         if response.status_code != 200:

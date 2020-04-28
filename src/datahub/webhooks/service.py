@@ -59,8 +59,10 @@ class WebhookService(object):
             body = schema().dump(request)
 
             try:
-                response = requests.post(subscription.url, json=body)
+                response = requests.post(subscription.url, json=body, verify=not DEBUG)
             except:
+                # TODO logging
+                raise
                 continue
 
             if response.status_code != 200:
