@@ -32,7 +32,7 @@ def import_meteringpoints(sub, session):
     :param str sub:
     :param Session session:
     """
-    logging.info('--- import_measurements, sub=%s' % sub)
+    logging.info('--- import_meteringpoints.import_meteringpoints, sub=%s' % sub)
 
     importer.import_meteringpoints(sub)
 
@@ -44,6 +44,6 @@ def invoke_webhook(sub):
     """
     :param str sub:
     """
-    logging.info('--- invoke_webhook, sub=%s' % sub)
+    logging.info('--- import_meteringpoints.invoke_webhook, sub=%s' % sub)
 
     webhook.on_meteringpoints_available(sub)

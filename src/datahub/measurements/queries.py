@@ -196,7 +196,7 @@ class MeasurementSummary(object):
     )
 
     RESOLUTIONS_POSTGRES = {
-        SummaryResolution.HOUR: 'YYYY-MM-DD HH:00',
+        SummaryResolution.HOUR: 'YYYY-MM-DD HH24:00',
         SummaryResolution.DAY: 'YYYY-MM-DD',
         SummaryResolution.MONTH: 'YYYY-MM',
         SummaryResolution.YEAR: 'YYYY',
