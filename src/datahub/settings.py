@@ -28,7 +28,7 @@ ALEMBIC_CONFIG_PATH = os.path.join(MIGRATIONS_DIR, 'alembic.ini')
 # -- Database ----------------------------------------------------------------
 
 SQL_ALCHEMY_SETTINGS = {
-    'echo': DEBUG,
+    'echo': False,
     'pool_pre_ping': True,
     'pool_size': int(os.environ['DATABASE_CONN_POLL_SIZE']),
 }
