@@ -3,10 +3,11 @@ import marshmallow_dataclass as md
 from datetime import datetime
 from dataclasses import dataclass, field
 
+from datahub.settings import DEBUG
 from datahub.db import atomic, inject_session
 
 from .models import Subscription, Event
-from ..settings import DEBUG
+
 
 @dataclass
 class OnGgoIssuedRequest:
