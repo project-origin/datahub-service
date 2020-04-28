@@ -23,7 +23,7 @@ stages:
       inputs:
         command: build
         repository: $(imageName)
-        Dockerfile: Dockerfile.web
+        Dockerfile: Dockerfile
         tags: |
           latest
           $(tag)
