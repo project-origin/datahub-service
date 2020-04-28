@@ -35,9 +35,6 @@ SQL_ALCHEMY_SETTINGS = {
 
 DATABASE_URI = os.environ['DATABASE_URI']
 
-USING_POSTGRES = DATABASE_URI.startswith('postgresql://')
-USING_SQLITE = DATABASE_URI.startswith('sqlite://')
-
 
 # -- Services ----------------------------------------------------------------
 

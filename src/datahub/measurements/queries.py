@@ -8,7 +8,6 @@ from sqlalchemy.orm import joinedload
 
 from datahub.ggo import Ggo
 from datahub.common import DateTimeRange
-from datahub.settings import USING_POSTGRES, USING_SQLITE
 from datahub.meteringpoints import MeteringPoint, MeasurementType
 
 from .models import (
@@ -203,7 +202,7 @@ class MeasurementSummary(object):
         SummaryResolution.YEAR: 'YYYY',
     }
 
-    RESOLUTIONS_SQLITE = {
+    RESOLUTIONS_PYTHON = {
         SummaryResolution.HOUR: '%Y-%m-%d %H:00',
         SummaryResolution.DAY: '%Y-%m-%d',
         SummaryResolution.MONTH: '%Y-%m',
@@ -233,20 +232,6 @@ class MeasurementSummary(object):
         self.grouping = grouping
         self.fill_range = None
 
-    def format_resolution(self, field):
-        """
-        TODO
-
-        :param field:
-        :return:
-        """
-        if USING_POSTGRES:
-            return func.to_char(field, self.RESOLUTIONS_POSTGRES[self.resolution])
-        elif USING_SQLITE:
-            return func.strftime(self.RESOLUTIONS_SQLITE[self.resolution], field)
-        else:
-            raise RuntimeError('Only postgres and SQLite are supported')
-
     def fill(self, fill_range):
         """
         :param DateTimeRange fill_range:
@@ -263,8 +248,7 @@ class MeasurementSummary(object):
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
         else:
-            # SQLite formats happens to be the same as Pythons strftime format
-            format = self.RESOLUTIONS_SQLITE[self.resolution]
+            format = self.RESOLUTIONS_PYTHON[self.resolution]
             step = self.LABEL_STEP[self.resolution]
             begin = self.fill_range.begin
             labels = []
@@ -308,7 +292,7 @@ class MeasurementSummary(object):
         if self.resolution == SummaryResolution.ALL:
             select.append(bindparam('label', self.ALL_TIME_LABEL))
         else:
-            select.append(self.format_resolution(q.c.begin).label('resolution'))
+            select.append(func.to_char(q.c.begin, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))
             groups.append('resolution')
 
         # -- Grouping ------------------------------------------------------------
