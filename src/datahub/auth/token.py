@@ -7,9 +7,6 @@ from datahub.settings import HYDRA_INTROSPECT_URL
 
 class Token:
 
-    # example json
-    # {'active': True, 'scope': 'openid offline photos.read', 'client_id': 'facebook-photo-backup', 'sub': 'martin@scoding.dk', 'exp': 1587019037, 'iat': 1587015436, 'iss': 'https://localhost:9100/', 'token_type': 'access_token', 'ext': {'ko': 'gris'}}
-
     def __init__(self, json):
         self.content = json
 

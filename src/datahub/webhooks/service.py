@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datahub.db import atomic, inject_session
 
 from .models import Subscription, Event
-
+from ..settings import DEBUG
 
 @dataclass
 class OnGgoIssuedRequest:
