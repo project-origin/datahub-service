@@ -53,7 +53,7 @@ def get_distinct_gsrn(session):
     """
     :param Session session:
     """
-    logging.info('--- get_distinct_gsrn')
+    logging.info('--- import_measurements.get_distinct_gsrn')
 
     meteringpoints = MeteringPointQuery(session).all()
 
@@ -73,7 +73,7 @@ def import_measurements(gsrn, session):
     :param str gsrn:
     :param Session session:
     """
-    logging.info(f'--- import_measurements, gsrn={gsrn}')
+    logging.info(f'--- import_measurements.import_measurements, gsrn={gsrn}')
 
     meteringpoint = MeteringPointQuery(session) \
         .has_gsrn(gsrn) \
@@ -113,7 +113,7 @@ def issue_ggos(gsrn, begin_from, begin_to, session):
     :param Session session:
     """
     logging.info((
-        f'--- issue_ggos, gsrn={gsrn}, '
+        f'--- import_measurements.issue_ggos, gsrn={gsrn}, '
         f'begin_from={begin_from}, begin_to={begin_to}'
     ))
 
@@ -152,7 +152,7 @@ def submit_to_ledger(task, gsrn, begin_from, begin_to, session):
     :rtype: str
     """
     logging.info((
-        f'--- submit_to_ledger, gsrn={gsrn}, '
+        f'--- import_measurements.submit_to_ledger, gsrn={gsrn}, '
         f'begin_from={begin_from}, begin_to={begin_to}'
     ))
 
@@ -201,7 +201,7 @@ def poll_batch_status(task, handle):
     :param celery.Task task:
     :param str handle:
     """
-    logging.info('--- poll_batch_status, handle = %s' % handle)
+    logging.info('--- import_measurements.poll_batch_status, handle = %s' % handle)
 
     ledger = ols.Ledger(LEDGER_URL)
     response = ledger.get_batch_status(handle)
@@ -222,7 +222,7 @@ def invoke_webhook(sub, gsrn, begin_from, begin_to):
     :param str begin_from:
     :param str begin_to:
     """
-    logging.info('--- invoke_webhook, gsrn=%s, begin_from=%s, begin_to=%s' % (
+    logging.info('--- import_measurements.invoke_webhook, gsrn=%s, begin_from=%s, begin_to=%s' % (
         gsrn, begin_from, begin_to))
 
     webhook.on_ggo_issued(
