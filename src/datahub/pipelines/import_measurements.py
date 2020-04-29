@@ -262,7 +262,6 @@ def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
     max_retries=MAX_POLLING_RETRIES,
 )
 @logger.wrap_task(
-    title='Polling batch status',
     pipeline='import_measurements',
     task='poll_batch_status',
 )
@@ -276,9 +275,14 @@ def poll_batch_status(task, handle, subject):
     response = ledger.get_batch_status(handle)
 
     if response.status == ols.BatchStatus.COMMITTED:
-        pass
+        logger.error('Ledger submitted', extra={
+            'subject': subject,
+            'handle': handle,
+            'pipeline': 'import_measurements',
+            'task': 'submit_to_ledger',
+        })
     elif response.status == ols.BatchStatus.INVALID:
-        logger.error('Ledger returned INVALID', extra={
+        logger.error('Batch submit FAILED: Invalid', extra={
             'subject': subject,
             'handle': handle,
             'pipeline': 'import_measurements',

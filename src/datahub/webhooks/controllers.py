@@ -36,7 +36,7 @@ class Subscribe(Controller):
             url=request.url,
         )
 
-        logger.info(f'Webhook subscription created: {self.event}', extra={
+        logger.info(f'Webhook subscription created: {self.event.value}', extra={
             'subject': token.subject,
             'event': self.event.value,
             'url': request.url,
