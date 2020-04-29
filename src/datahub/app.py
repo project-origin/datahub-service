@@ -1,13 +1,12 @@
 import sys
 import logging
-
 from flask import Flask
 from flask_cors import CORS
 
 from .urls import urls
-from .settings import DEBUG, SECRET, CORS_ORIGINS
+from .settings import DEBUG, SECRET, CORS_ORIGINS, AZURE_APP_INSIGHTS_CONN_STRING
 
-# Import models here for SQLAlchemy to detech them
+# Import models here for SQLAlchemy to detect them
 from .models import VERSIONED_DB_MODELS
 
 

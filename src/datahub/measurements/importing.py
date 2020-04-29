@@ -1,7 +1,7 @@
 import logging
-from sqlalchemy.exc import IntegrityError
 from datetime import date, datetime, timedelta, timezone
 
+from datahub import logger
 from datahub.db import atomic, inject_session
 from datahub.services import eloverblik as e
 from datahub.settings import FIRST_MEASUREMENT_TIME
@@ -40,23 +40,31 @@ class MeasurementImportController(object):
         # datetime_to = datetime_to.replace(tzinfo=timezone.utc)
 
         return self.import_measurements(
+            sub=meteringpoint.sub,
             gsrn=meteringpoint.gsrn,
             datetime_from=datetime_from.replace(tzinfo=timezone.utc),
             datetime_to=datetime_to.replace(tzinfo=timezone.utc),
         )
 
     @atomic
-    def import_measurements(self, gsrn, datetime_from, datetime_to, session):
+    def import_measurements(self, sub, gsrn, datetime_from, datetime_to, session):
         """
         datetime_from *INCLUDED*
         datetime_to *EXCLUDED*
 
+        :param str sub:
         :param str gsrn:
         :param datetime datetime_from:
         :param datetime datetime_to:
         :param Session session:
         :rtype: list[Measurement]
         """
+        logger.info(f'Importing measurements from ElOverblik for GSRN: {gsrn}', extra={
+            'subject': sub,
+            'gsrn': gsrn,
+            'datetime_from': str(datetime_from),
+            'datetime_to': str(datetime_to),
+        })
 
         # The service does not include time series at date=datetime_to,
         # so we add one day to make sure any time series at the date
@@ -82,6 +90,13 @@ class MeasurementImportController(object):
                     session.flush()
                 else:
                     logging.error('Duplicate pair of (GSRN, Begin) for measurement: %s' % str(measurement))
+
+        logger.info(f'Imported {len(measurements)} measurements from ElOverblik for GSRN: {gsrn}', extra={
+            'subject': sub,
+            'gsrn': gsrn,
+            'datetime_from': str(datetime_from),
+            'datetime_to': str(datetime_to),
+        })
 
         return measurements
 

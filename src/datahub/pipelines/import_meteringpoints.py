@@ -1,10 +1,8 @@
 """
 TODO write this
 """
-import logging
-
+from datahub import logger
 from datahub.tasks import celery_app
-from datahub.db import inject_session
 from datahub.webhooks import WebhookService
 from datahub.services.eloverblik import EloverblikService
 from datahub.meteringpoints import MeteringPointsImportController
@@ -15,35 +13,58 @@ importer = MeteringPointsImportController()
 webhook = WebhookService()
 
 
-def start_import_meteringpoints_pipeline(sub):
+def start_import_meteringpoints_pipeline(subject):
     """
     TODO
 
-    :param str sub:
+    :param str subject:
     """
-    import_meteringpoints.s(sub) \
+    import_meteringpoints.s(subject=subject) \
         .apply_async()
 
 
 @celery_app.task(name='import_meteringpoints.import_meteringpoints')
-@inject_session
-def import_meteringpoints(sub, session):
+@logger.wrap_task(
+    title='Importing MeteringPoints from ElOverblik',
+    pipeline='import_meteringpoints',
+    task='import_meteringpoints',
+)
+def import_meteringpoints(subject):
     """
-    :param str sub:
-    :param Session session:
+    :param str subject:
     """
-    logging.info('--- import_meteringpoints.import_meteringpoints, sub=%s' % sub)
+    # logger.info('Task: Importing MeteringPoints from ElOverblik', extra={
+    #     'subject': subject,
+    #     'pipeline': 'import_meteringpoints',
+    #     'task': 'import_meteringpoints',
+    # })
 
-    importer.import_meteringpoints(sub)
-
-    invoke_webhook.s(sub).apply_async()
+    try:
+        importer.import_meteringpoints(subject)
+    except:
+        logger.exception('Failed to import MeteringPoints from ElOverblik', extra={
+            'subject': subject,
+            'pipeline': 'import_meteringpoints',
+            'task': 'import_meteringpoints',
+        })
+    else:
+        invoke_webhook.s(subject=subject).apply_async()
 
 
 @celery_app.task(name='import_meteringpoints.invoke_webhook')
-def invoke_webhook(sub):
+@logger.wrap_task(
+    title='Invoking webhooks: on_meteringpoints_available',
+    pipeline='import_meteringpoints',
+    task='invoke_webhook',
+)
+def invoke_webhook(subject):
     """
-    :param str sub:
+    :param str subject:
     """
-    logging.info('--- import_meteringpoints.invoke_webhook, sub=%s' % sub)
+    # logger.info('Task: Invoking webhooks: on_meteringpoints_available', extra={
+    #     'subject': subject,
+    #     'pipeline': 'import_meteringpoints',
+    #     'task': 'invoke_webhook',
+    # })
 
-    webhook.on_meteringpoints_available(sub)
+    webhook.on_meteringpoints_available(subject)
