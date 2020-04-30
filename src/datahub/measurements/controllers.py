@@ -11,6 +11,8 @@ from .models import (
     GetMeasurementRequest,
     GetMeasurementListRequest,
     GetMeasurementListResponse,
+    GetBeginRangeRequest,
+    GetBeginRangeResponse,
     GetMeasurementSummaryRequest,
     GetMeasurementSummaryResponse,
 )
@@ -18,7 +20,7 @@ from .models import (
 
 class GetMeasurement(Controller):
     """
-    TODO
+    Get a single measurement of a specific type (PRODUCTION or CONSUMPTION).
     """
     Request = md.class_schema(GetMeasurementRequest)
     Response = md.class_schema(GetMeasurementResponse)
@@ -54,7 +56,7 @@ class GetMeasurement(Controller):
 
 class GetMeasurementList(Controller):
     """
-    TODO
+    Get a list of measurements.
     """
     Request = md.class_schema(GetMeasurementListRequest)
     Response = md.class_schema(GetMeasurementListResponse)
@@ -87,9 +89,39 @@ class GetMeasurementList(Controller):
         )
 
 
+class GetBeginRange(Controller):
+    """
+    Get the first and last "begin" for a series of measurements.
+    """
+    Request = md.class_schema(GetBeginRangeRequest)
+    Response = md.class_schema(GetBeginRangeResponse)
+
+    @require_oauth('measurements.read')
+    @inject_token
+    @inject_session
+    def handle_request(self, request, token, session):
+        """
+        :param GetBeginRangeRequest request:
+        :param Token token:
+        :param Session session:
+        :rtype: GetBeginRangeResponse
+        """
+        query = MeasurementQuery(session) \
+            .belongs_to(token.subject)
+
+        if request.filters:
+            query = query.apply_filters(request.filters)
+
+        return GetBeginRangeResponse(
+            success=True,
+            first=query.get_first_measured_begin(),
+            last=query.get_last_measured_begin(),
+        )
+
+
 class GetMeasurementSummary(Controller):
     """
-    TODO
+    Get an aggregated summary of measurements.
     """
     Request = md.class_schema(GetMeasurementSummaryRequest)
     Response = md.class_schema(GetMeasurementSummaryResponse)
