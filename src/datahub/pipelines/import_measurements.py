@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from datahub.ggo import Ggo
 from datahub.db import atomic, inject_session
 from datahub.common import DateTimeRange
-from datahub.settings import LEDGER_URL, GGO_EXPIRE_TIME
+from datahub.settings import LEDGER_URL, GGO_EXPIRE_TIME, DEBUG
 from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
 from datahub.meteringpoints import MeteringPointQuery
@@ -168,7 +168,7 @@ def submit_to_ledger(task, gsrn, begin_from, begin_to, session):
         .begins_within(DateTimeRange(begin=begin_from, end=begin_to)) \
         .all()
 
-    ledger = ols.Ledger(LEDGER_URL)
+    ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
     batch = ols.Batch(meteringpoint.key.PrivateKey())
 
     # Add requests to Batch (for each Measurement + Ggo)
@@ -203,7 +203,7 @@ def poll_batch_status(task, handle):
     """
     logging.info('--- import_measurements.poll_batch_status, handle = %s' % handle)
 
-    ledger = ols.Ledger(LEDGER_URL)
+    ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
     response = ledger.get_batch_status(handle)
 
     if response.status == ols.BatchStatus.COMMITTED:
