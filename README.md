@@ -37,6 +37,8 @@ Name | Description | Example
 `REDIS_CACHE_DB` | Redis database for caching (unique for this service) | `0`
 `REDIS_BROKER_DB` | Redis database for task brokering (unique for this service) | `1`
 `REDIS_BACKEND_DB` | Redis database for task results (unique for this service) | `2`
+**Logging:** | |
+`AZURE_APP_INSIGHTS_CONN_STRING` | Azure Application Insight connection string (optional) | `InstrumentationKey=19440978-19a8-4d07-9a99-b7a31d99f313`
 
 
 # Building container images

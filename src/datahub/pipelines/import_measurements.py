@@ -1,11 +1,11 @@
 """
 TODO write this
 """
-import logging
 import origin_ledger_sdk as ols
 from celery import group, chain
 from datetime import datetime, timezone
 
+from datahub import logger
 from datahub.ggo import Ggo
 from datahub.db import atomic, inject_session
 from datahub.common import DateTimeRange
@@ -33,32 +33,46 @@ def start_import_measurements_pipeline():
     """
     TODO
     """
-    get_distinct_gsrn.s() \
+    get_distinct_gsrn \
+        .s() \
         .apply_async()
 
 
-def start_import_measurements_pipeline_for(gsrn):
+def start_import_measurements_pipeline_for(subject, gsrn):
     """
     TODO
 
+    :param str subject:
     :param str gsrn:
     """
-    import_measurements.s(gsrn) \
+    import_measurements \
+        .s(subject=subject, gsrn=gsrn) \
         .apply_async()
 
 
-@celery_app.task(name='import_measurements.get_distinct_gsrn')
+@celery_app.task(
+    name='import_measurements.get_distinct_gsrn',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Getting distinct GSRN numbers for importing measurements',
+    pipeline='import_measurements',
+    task='get_distinct_gsrn',
+)
 @inject_session
 def get_distinct_gsrn(session):
     """
     :param Session session:
     """
-    logging.info('--- import_measurements.get_distinct_gsrn')
-
     meteringpoints = MeteringPointQuery(session).all()
 
     tasks = [
-        import_measurements.s(meteringpoint.gsrn)
+        import_measurements.s(
+            subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
+        )
         for meteringpoint in meteringpoints
     ]
 
@@ -66,15 +80,24 @@ def get_distinct_gsrn(session):
         group(tasks).apply_async()
 
 
-@celery_app.task(name='import_measurements.import_measurements')
+@celery_app.task(
+    name='import_measurements.import_measurements',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Importing measurements for GSRN: %(gsrn)s',
+    pipeline='import_measurements',
+    task='import_measurements',
+)
 @inject_session
-def import_measurements(gsrn, session):
+def import_measurements(subject, gsrn, session):
     """
+    :param str subject:
     :param str gsrn:
     :param Session session:
     """
-    logging.info(f'--- import_measurements.import_measurements, gsrn={gsrn}')
-
     meteringpoint = MeteringPointQuery(session) \
         .has_gsrn(gsrn) \
         .one()
@@ -88,35 +111,65 @@ def import_measurements(gsrn, session):
         if meteringpoint.is_producer():
             # For production measurements, also issue GGOs and invoke webhook
             tasks = chain(
-                issue_ggos.s(gsrn, begin_from.isoformat(), begin_to.isoformat()),
-                submit_to_ledger.si(gsrn, begin_from.isoformat(), begin_to.isoformat()),
-                poll_batch_status.s(),
-                invoke_webhook.si(meteringpoint.sub, gsrn, begin_from.isoformat(), begin_to.isoformat()),
+                issue_ggos.s(
+                    subject=subject,
+                    gsrn=gsrn,
+                    begin_from=begin_from.isoformat(),
+                    begin_to=begin_to.isoformat(),
+                ),
+                submit_to_ledger.si(
+                    subject=subject,
+                    gsrn=gsrn,
+                    begin_from=begin_from.isoformat(),
+                    begin_to=begin_to.isoformat(),
+                ),
+                poll_batch_status.s(
+                    subject=subject,
+                ),
+                invoke_webhook.si(
+                    subject=meteringpoint.sub,
+                    gsrn=gsrn,
+                    begin_from=begin_from.isoformat(),
+                    begin_to=begin_to.isoformat(),
+                ),
             )
         else:
             # For consumption measurements, just submit to ledger without GGOs
             tasks = chain(
-                submit_to_ledger.si(gsrn, begin_from.isoformat(), begin_to.isoformat()),
-                poll_batch_status.s(),
+                submit_to_ledger.si(
+                    subject=subject,
+                    gsrn=gsrn,
+                    begin_from=begin_from.isoformat(),
+                    begin_to=begin_to.isoformat(),
+                ),
+                poll_batch_status.s(
+                    subject=subject,
+                ),
             )
 
         tasks.apply_async()
 
 
-@celery_app.task(name='import_measurements.issue_ggos')
+@celery_app.task(
+    name='import_measurements.issue_ggos',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Issuing GGOs for GSRN: %(gsrn)s',
+    pipeline='import_measurements',
+    task='issue_ggos',
+)
 @atomic
-def issue_ggos(gsrn, begin_from, begin_to, session):
+def issue_ggos(subject, gsrn, begin_from, begin_to, session):
     """
+    :param str subject:
     :param str gsrn:
     :param str begin_from:
     :param str begin_to:
     :param Session session:
     """
-    logging.info((
-        f'--- import_measurements.issue_ggos, gsrn={gsrn}, '
-        f'begin_from={begin_from}, begin_to={begin_to}'
-    ))
-
     begin_from = datetime.fromisoformat(begin_from)
     begin_to = datetime.fromisoformat(begin_to)
 
@@ -124,6 +177,15 @@ def issue_ggos(gsrn, begin_from, begin_to, session):
         .has_gsrn(gsrn) \
         .begins_within(DateTimeRange(begin=begin_from, end=begin_to)) \
         .needs_ggo_issued()
+
+    logger.info(f'Issuing GGOs for {query.count()} measurements for GSRN: {gsrn}', extra={
+        'gsrn': gsrn,
+        'subject': subject,
+        'begin_from': str(begin_from),
+        'begin_to': str(begin_to),
+        'pipeline': 'import_measurements',
+        'task': 'issue_ggos',
+    })
 
     for i, measurement in enumerate(query.all()):
         session.add(Ggo(
@@ -139,23 +201,26 @@ def issue_ggos(gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.submit_to_ledger',
-    max_retries=None,
+    autoretry_for=(ols.LedgerException,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Submitting Batch to ledger for GSRN: %(gsrn)s',
+    pipeline='import_measurements',
+    task='submit_to_ledger',
 )
 @inject_session
-def submit_to_ledger(task, gsrn, begin_from, begin_to, session):
+def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
     """
     :param celery.Task task:
+    :param str subject:
     :param str gsrn:
     :param str begin_from:
     :param str begin_to:
     :param Session session:
     :rtype: str
     """
-    logging.info((
-        f'--- import_measurements.submit_to_ledger, gsrn={gsrn}, '
-        f'begin_from={begin_from}, begin_to={begin_to}'
-    ))
-
     begin_from = datetime.fromisoformat(begin_from)
     begin_to = datetime.fromisoformat(begin_to)
 
@@ -182,11 +247,33 @@ def submit_to_ledger(task, gsrn, begin_from, begin_to, session):
         handle = ledger.execute_batch(batch)
     except ols.LedgerException as e:
         if e.code == 31:
-            # Ledger queue is full, try again later
-            logging.info('ERROR 31, RETRYING...')
-            raise task.retry(countdown=SUBMIT_RETRY_DELAY)
+            # Ledger Queue is full
+            raise task.retry(
+                max_retries=9999,
+                countdown=SUBMIT_RETRY_DELAY,
+            )
         else:
-            raise e
+            logger.exception(f'Ledger raise an exception for GSRN: {gsrn}', extra={
+                'gsrn': gsrn,
+                'subject': subject,
+                'begin_from': str(begin_from),
+                'begin_to': str(begin_to),
+                'error_message': str(e),
+                'error_code': e.code,
+                'pipeline': 'import_measurements',
+                'task': 'submit_to_ledger',
+            })
+            raise
+
+    logger.info(f'Batch submitted to ledger for GSRN: {gsrn}', extra={
+        'gsrn': gsrn,
+        'subject': subject,
+        'begin_from': str(begin_from),
+        'begin_to': str(begin_to),
+        'handle': handle,
+        'pipeline': 'import_measurements',
+        'task': 'submit_to_ledger',
+    })
 
     return handle
 
@@ -194,39 +281,64 @@ def submit_to_ledger(task, gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.poll_batch_status',
-    max_retries=MAX_POLLING_RETRIES,
+    autoretry_for=(ols.LedgerException,),
+    retry_backoff=2,
+    max_retries=5,
 )
-def poll_batch_status(task, handle):
+@logger.wrap_task(
+    pipeline='import_measurements',
+    task='poll_batch_status',
+)
+def poll_batch_status(task, handle, subject):
     """
     :param celery.Task task:
     :param str handle:
+    :param str subject:
     """
-    logging.info('--- import_measurements.poll_batch_status, handle = %s' % handle)
-
     ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
     response = ledger.get_batch_status(handle)
 
     if response.status == ols.BatchStatus.COMMITTED:
-        pass
+        logger.error('Ledger submitted', extra={
+            'subject': subject,
+            'handle': handle,
+            'pipeline': 'import_measurements',
+            'task': 'submit_to_ledger',
+        })
     elif response.status == ols.BatchStatus.INVALID:
-        raise Exception('INVALID')
+        logger.error('Batch submit FAILED: Invalid', extra={
+            'subject': subject,
+            'handle': handle,
+            'pipeline': 'import_measurements',
+            'task': 'submit_to_ledger',
+        })
     else:
-        raise task.retry(countdown=POLLING_DELAY)
+        raise task.retry(
+            max_retries=MAX_POLLING_RETRIES,
+            countdown=POLLING_DELAY,
+        )
 
 
-@celery_app.task(name='import_measurements.invoke_webhook')
-def invoke_webhook(sub, gsrn, begin_from, begin_to):
+@celery_app.task(
+    name='import_measurements.invoke_webhook',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
+    pipeline='import_measurements',
+    task='invoke_webhook',
+)
+def invoke_webhook(subject, gsrn, begin_from, begin_to):
     """
-    :param str sub:
+    :param str subject:
     :param str gsrn:
     :param str begin_from:
     :param str begin_to:
     """
-    logging.info('--- import_measurements.invoke_webhook, gsrn=%s, begin_from=%s, begin_to=%s' % (
-        gsrn, begin_from, begin_to))
-
     webhook.on_ggo_issued(
-        subject=sub,
+        subject=subject,
         gsrn=gsrn,
         begin_from=datetime.fromisoformat(begin_from),
         begin_to=datetime.fromisoformat(begin_to),

@@ -1,5 +1,6 @@
 import marshmallow_dataclass as md
 
+from datahub import logger
 from datahub.http import Controller
 from datahub.auth import Token, require_oauth, inject_token
 
@@ -34,5 +35,11 @@ class Subscribe(Controller):
             subject=token.subject,
             url=request.url,
         )
+
+        logger.info(f'Webhook subscription created: {self.event.value}', extra={
+            'subject': token.subject,
+            'event': self.event.value,
+            'url': request.url,
+        })
 
         return True

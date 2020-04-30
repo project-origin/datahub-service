@@ -1,6 +1,6 @@
 import marshmallow_dataclass as md
 
-from datahub.db import atomic, inject_session
+from datahub.db import inject_session
 from datahub.cache import redis
 from datahub.settings import PROJECT_URL
 from datahub.http import Controller, redirect

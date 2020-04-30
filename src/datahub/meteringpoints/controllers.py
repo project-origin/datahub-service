@@ -1,5 +1,6 @@
 import marshmallow_dataclass as md
 
+from datahub import logger
 from datahub.auth import Token, require_oauth, inject_token
 from datahub.db import inject_session, atomic
 from datahub.http import Controller
@@ -51,7 +52,12 @@ class SetKey(Controller):
         """
         self.set_key(token.subject, request.gsrn, request.key)
 
-        start_import_measurements_pipeline_for(request.gsrn)
+        logger.info(f'Extended key set for MeteringPoint: {request.gsrn}', extra={
+            'gsrn': request.gsrn,
+            'subject': token.subject,
+        })
+
+        start_import_measurements_pipeline_for(token.subject, request.gsrn)
 
         return SetKeyResponse(success=True)
 

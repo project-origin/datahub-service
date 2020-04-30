@@ -1,3 +1,4 @@
+from datahub import logger
 from datahub.db import atomic
 from datahub.services import eloverblik as e
 from datahub.services.energytypes import EnergyTypeService
@@ -18,6 +19,10 @@ class MeteringPointsImportController(object):
         :param str sub:
         :rtype: list[MeteringPoint]
         """
+        logger.info(f'Importing MeteringPoints from ElOverblik', extra={
+            'subject': sub,
+        })
+
         imported_meteringpoints = self.service.get_meteringpoints(
             scope=e.Scope.CustomerKey,
             identifier=sub,
@@ -25,6 +30,11 @@ class MeteringPointsImportController(object):
 
         mapped_meteringpoints = self.insert_to_db(
             sub, imported_meteringpoints)
+
+        logger.info(f'Imported {len(mapped_meteringpoints)} MeteringPoints from ElOverblik', extra={
+            'subject': sub,
+            'gsrn': ', '.join(m.gsrn for m in mapped_meteringpoints),
+        })
 
         return mapped_meteringpoints
 
