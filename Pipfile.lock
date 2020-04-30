@@ -348,7 +348,7 @@
         },
         "origin-ledger-sdk": {
             "hashes": [
-                "sha256:4748c4ea6461a51424f577570e724a0d02ed85717c285741d56f241b7110df99"
+                "sha256:fd60d2310483b1e3ebaf552fa674d4e98e56cbdf97c1709b2c28c9ac6b8ba03c"
             ],
             "index": "pypi",
             "version": "==0.1.11"
