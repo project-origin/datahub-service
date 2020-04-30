@@ -31,6 +31,7 @@ urls = (
 
     ('/measurements', measurements.GetMeasurementList()),
     ('/measurements/summary', measurements.GetMeasurementSummary()),
+    ('/measurements/begin-range', measurements.GetBeginRange()),
     ('/measurements/consumed', measurements.GetMeasurement(
         MeasurementType.CONSUMPTION)),
     ('/measurements/produced', measurements.GetMeasurement(
