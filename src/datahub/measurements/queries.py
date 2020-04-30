@@ -164,7 +164,7 @@ class MeasurementQuery(object):
         :rtype: datetime
         """
         return self.session.query(
-            func.min(self.q.subquery().c.begin)).one()[0]
+            func.min(self.q.subquery().c.begin)).scalar()
 
     def get_last_measured_begin(self):
         """
@@ -173,7 +173,7 @@ class MeasurementQuery(object):
         :rtype: datetime
         """
         return self.session.query(
-            func.max(self.q.subquery().c.begin)).one()[0]
+            func.max(self.q.subquery().c.begin)).scalar()
 
     def get_summary(self, resolution, grouping):
         """

@@ -185,6 +185,21 @@ class GetMeasurementListResponse:
     measurements: List[MappedMeasurement] = field(default_factory=list)
 
 
+# -- GetBeginRange request and response --------------------------------------
+
+
+@dataclass
+class GetBeginRangeRequest:
+    filters: MeasurementFilters = field(default=None)
+
+
+@dataclass
+class GetBeginRangeResponse:
+    success: bool
+    first: datetime
+    last: datetime
+
+
 # -- GetGgoSummary request and response --------------------------------------
 
 
