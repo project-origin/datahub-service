@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datahub-deployment
+  namespace: project-origin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datahub-deployment
+  template:
+    metadata:
+      labels:
+        app: datahub-deployment
+    spec:
+      containers:
+        - name: datahub-container
+          image: projectorigin/datahub-service:2154
+          ports:
+            - containerPort: 8089
+          envFrom:
+            - configMapRef:
+                name: namespace-config
+            - configMapRef:
+                name: datahub-config
+            - secretRef:
+                name: eloverblik-secret
+            - secretRef:
+                name: datahub-system-secret
+            - secretRef:
+                name: datahub-db-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datahub-beat-deployment
+  namespace: project-origin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datahub-beat-deployment
+  template:
+    metadata:
+      labels:
+        app: datahub-beat-deployment
+    spec:
+      containers:
+        - name: datahub-beat-container
+          image: projectorigin/datahub-service:2154
+          args: ["pipenv", "run", "beat"]
+          envFrom:
+            - configMapRef:
+                name: namespace-config
+            - configMapRef:
+                name: datahub-config
+            - secretRef:
+                name: eloverblik-secret
+            - secretRef:
+                name: datahub-system-secret
+            - secretRef:
+                name: datahub-db-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datahub-worker-deployment
+  namespace: project-origin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datahub-worker-deployment
+  template:
+    metadata:
+      labels:
+        app: datahub-worker-deployment
+    spec:
+      containers:
+        - name: datahub-worker-container
+          image: projectorigin/datahub-service:2154
+          args: ["pipenv", "run", "worker"]
+          envFrom:
+            - configMapRef:
+                name: namespace-config
+            - configMapRef:
+                name: datahub-config
+            - secretRef:
+                name: eloverblik-secret
+            - secretRef:
+                name: datahub-system-secret
+            - secretRef:
+                name: datahub-db-secret
