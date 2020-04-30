@@ -33,7 +33,8 @@ def start_import_measurements_pipeline():
     """
     TODO
     """
-    get_distinct_gsrn.s() \
+    get_distinct_gsrn \
+        .s() \
         .apply_async()
 
 
@@ -44,11 +45,17 @@ def start_import_measurements_pipeline_for(subject, gsrn):
     :param str subject:
     :param str gsrn:
     """
-    import_measurements.s(subject=subject, gsrn=gsrn) \
+    import_measurements \
+        .s(subject=subject, gsrn=gsrn) \
         .apply_async()
 
 
-@celery_app.task(name='import_measurements.get_distinct_gsrn')
+@celery_app.task(
+    name='import_measurements.get_distinct_gsrn',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Getting distinct GSRN numbers for importing measurements',
     pipeline='import_measurements',
@@ -73,7 +80,12 @@ def get_distinct_gsrn(session):
         group(tasks).apply_async()
 
 
-@celery_app.task(name='import_measurements.import_measurements')
+@celery_app.task(
+    name='import_measurements.import_measurements',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Importing measurements for GSRN: %(gsrn)s',
     pipeline='import_measurements',
@@ -138,7 +150,12 @@ def import_measurements(subject, gsrn, session):
         tasks.apply_async()
 
 
-@celery_app.task(name='import_measurements.issue_ggos')
+@celery_app.task(
+    name='import_measurements.issue_ggos',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Issuing GGOs for GSRN: %(gsrn)s',
     pipeline='import_measurements',
@@ -184,7 +201,9 @@ def issue_ggos(subject, gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.submit_to_ledger',
-    max_retries=None,
+    autoretry_for=(ols.LedgerException,),
+    retry_backoff=2,
+    max_retries=5,
 )
 @logger.wrap_task(
     title='Submitting Batch to ledger for GSRN: %(gsrn)s',
@@ -229,7 +248,10 @@ def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
     except ols.LedgerException as e:
         if e.code == 31:
             # Ledger Queue is full
-            raise task.retry(countdown=SUBMIT_RETRY_DELAY)
+            raise task.retry(
+                max_retries=9999,
+                countdown=SUBMIT_RETRY_DELAY,
+            )
         else:
             logger.exception(f'Ledger raise an exception for GSRN: {gsrn}', extra={
                 'gsrn': gsrn,
@@ -259,7 +281,9 @@ def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.poll_batch_status',
-    max_retries=MAX_POLLING_RETRIES,
+    autoretry_for=(ols.LedgerException,),
+    retry_backoff=2,
+    max_retries=5,
 )
 @logger.wrap_task(
     pipeline='import_measurements',
@@ -289,10 +313,18 @@ def poll_batch_status(task, handle, subject):
             'task': 'submit_to_ledger',
         })
     else:
-        raise task.retry(countdown=POLLING_DELAY)
+        raise task.retry(
+            max_retries=MAX_POLLING_RETRIES,
+            countdown=POLLING_DELAY,
+        )
 
 
-@celery_app.task(name='import_measurements.invoke_webhook')
+@celery_app.task(
+    name='import_measurements.invoke_webhook',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
     pipeline='import_measurements',

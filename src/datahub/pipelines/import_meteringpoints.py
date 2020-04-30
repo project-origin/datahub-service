@@ -19,11 +19,17 @@ def start_import_meteringpoints_pipeline(subject):
 
     :param str subject:
     """
-    import_meteringpoints.s(subject=subject) \
+    import_meteringpoints \
+        .s(subject=subject) \
         .apply_async()
 
 
-@celery_app.task(name='import_meteringpoints.import_meteringpoints')
+@celery_app.task(
+    name='import_meteringpoints.import_meteringpoints',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Importing MeteringPoints from ElOverblik',
     pipeline='import_meteringpoints',
@@ -33,25 +39,17 @@ def import_meteringpoints(subject):
     """
     :param str subject:
     """
-    # logger.info('Task: Importing MeteringPoints from ElOverblik', extra={
-    #     'subject': subject,
-    #     'pipeline': 'import_meteringpoints',
-    #     'task': 'import_meteringpoints',
-    # })
+    importer.import_meteringpoints(subject)
 
-    try:
-        importer.import_meteringpoints(subject)
-    except:
-        logger.exception('Failed to import MeteringPoints from ElOverblik', extra={
-            'subject': subject,
-            'pipeline': 'import_meteringpoints',
-            'task': 'import_meteringpoints',
-        })
-    else:
-        invoke_webhook.s(subject=subject).apply_async()
+    invoke_webhook.s(subject=subject).apply_async()
 
 
-@celery_app.task(name='import_meteringpoints.invoke_webhook')
+@celery_app.task(
+    name='import_meteringpoints.invoke_webhook',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
 @logger.wrap_task(
     title='Invoking webhooks: on_meteringpoints_available',
     pipeline='import_meteringpoints',
@@ -61,10 +59,4 @@ def invoke_webhook(subject):
     """
     :param str subject:
     """
-    # logger.info('Task: Invoking webhooks: on_meteringpoints_available', extra={
-    #     'subject': subject,
-    #     'pipeline': 'import_meteringpoints',
-    #     'task': 'invoke_webhook',
-    # })
-
     webhook.on_meteringpoints_available(subject)
