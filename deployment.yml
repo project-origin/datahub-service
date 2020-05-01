@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: datahub-container
-          image: projectorigin/datahub-service:2154
+          image: projectorigin/datahub-service:2164
           ports:
             - containerPort: 8089
           envFrom:
@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
         - name: datahub-beat-container
-          image: projectorigin/datahub-service:2154
+          image: projectorigin/datahub-service:2164
           args: ["pipenv", "run", "beat"]
           envFrom:
             - configMapRef:
@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: datahub-worker-container
-          image: projectorigin/datahub-service:2154
+          image: projectorigin/datahub-service:2164
           args: ["pipenv", "run", "worker"]
           envFrom:
             - configMapRef:
