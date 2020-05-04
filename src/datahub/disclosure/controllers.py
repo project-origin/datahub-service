@@ -109,9 +109,10 @@ class GetDisclosure(Controller):
                 message=f'Disclosure with ID "{request.id}" not found',
             )
 
-        # We don't need to set the date outer boundaries to min/max at those
-        # of the disclosure, as disclosure.get_measurements() does this already
-        begin_range = request.date_range.to_datetime_range()
+        # Set the date outer boundaries to those of the disclosure
+        begin_range = request.date_range \
+            .with_boundaries(disclosure.begin, disclosure.end) \
+            .to_datetime_range()
 
         # Get summary of the measurements which were published
         measurement_summary = disclosure \
