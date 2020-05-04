@@ -33,8 +33,15 @@ class MeteringPointQuery(object):
 
     def belongs_to(self, sub):
         """
-        TODO
+        :param str sub:
+        :rtype: MeteringPointQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            MeteringPoint.sub == sub,
+        ))
 
+    def has_sub(self, sub):
+        """
         :param str sub:
         :rtype: MeteringPointQuery
         """
@@ -44,8 +51,6 @@ class MeteringPointQuery(object):
 
     def has_gsrn(self, gsrn):
         """
-        TODO
-
         :param str gsrn:
         :rtype: MeteringPointQuery
         """
@@ -55,8 +60,6 @@ class MeteringPointQuery(object):
 
     def has_key(self):
         """
-        TODO
-
         :rtype: MeteringPointQuery
         """
         return self.__class__(self.session, self.q.filter(
@@ -65,8 +68,6 @@ class MeteringPointQuery(object):
 
     def is_type(self, type):
         """
-        TODO
-
         :param MeasurementType type:
         :rtype: MeteringPointQuery
         """
@@ -76,16 +77,12 @@ class MeteringPointQuery(object):
 
     def is_production(self):
         """
-        TODO
-
         :rtype: MeteringPointQuery
         """
         return self.is_type(MeasurementType.PRODUCTION)
 
     def is_consumption(self):
         """
-        TODO
-
         :rtype: MeteringPointQuery
         """
         return self.is_type(MeasurementType.CONSUMPTION)

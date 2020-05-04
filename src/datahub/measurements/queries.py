@@ -66,8 +66,6 @@ class MeasurementQuery(object):
 
     def belongs_to(self, sub):
         """
-        TODO
-
         :param str sub:
         :rtype: MeasurementQuery
         """
@@ -77,8 +75,6 @@ class MeasurementQuery(object):
 
     def begins_at(self, begin):
         """
-        TODO
-
         :param datetime begin:
         :rtype: MeasurementQuery
         """
@@ -88,8 +84,6 @@ class MeasurementQuery(object):
 
     def begins_within(self, begin_range):
         """
-        TODO
-
         :param DateTimeRange begin_range:
         :rtype: MeasurementQuery
         """
@@ -100,8 +94,6 @@ class MeasurementQuery(object):
 
     def has_gsrn(self, gsrn):
         """
-        TODO
-
         :param str gsrn:
         :rtype: MeasurementQuery
         """
@@ -120,8 +112,6 @@ class MeasurementQuery(object):
 
     def is_type(self, type):
         """
-        TODO
-
         :param MeasurementType type:
         :rtype: MeasurementQuery
         """
@@ -131,24 +121,18 @@ class MeasurementQuery(object):
 
     def is_production(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.PRODUCTION)
 
     def is_consumption(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.CONSUMPTION)
 
     def needs_ggo_issued(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         q = self.q.filter(Ggo.id.is_(None))
@@ -177,8 +161,6 @@ class MeasurementQuery(object):
 
     def get_last_measured_begin(self):
         """
-        TODO
-
         :rtype: datetime
         """
         return self.session.query(

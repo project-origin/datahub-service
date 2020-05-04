@@ -5,8 +5,10 @@ from datetime import date
 from dataclasses import dataclass, field
 from marshmallow import validate
 
-from datahub.db import ModelBase
+from datahub.db import ModelBase, Session
+from datahub.measurements import MeasurementQuery
 from datahub.common import SummaryResolution, SummaryGroup, DateRange
+from datahub.meteringpoints import MeteringPoint
 
 
 class Disclosure(ModelBase):
@@ -28,17 +30,33 @@ class Disclosure(ModelBase):
 
     meteringpoints = relationship('DisclosureMeteringPoint', back_populates='disclosure', uselist=True)
 
-    def add_gsrn(self, gsrn):
+    @property
+    def date_range(self):
         """
-        :param str gsrn:
+        :rtype: DateRange
         """
-        self.meteringpoints.append(DisclosureMeteringPoint(gsrn=gsrn))
+        return DateRange(begin=self.begin, end=self.end)
+
+    def add_meteringpoint(self, meteringpoint):
+        """
+        :param MeteringPoint meteringpoint:
+        """
+        self.meteringpoints.append(
+            DisclosureMeteringPoint(gsrn=meteringpoint.gsrn))
 
     def get_gsrn(self):
         """
         :rtype list[str]:
         """
         return [mp.gsrn for mp in self.meteringpoints]
+
+    def get_measurements(self):
+        """
+        :rtype: MeasurementQuery
+        """
+        return MeasurementQuery(Session.object_session(self)) \
+            .has_any_gsrn(self.get_gsrn()) \
+            .begins_within(self.date_range.to_datetime_range())
 
 
 class DisclosureMeteringPoint(ModelBase):
@@ -82,7 +100,7 @@ class DisclosureRetiredGgo(ModelBase):
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
-    settlement_id = sa.Column(sa.String(), sa.ForeignKey('disclosure_settlement.id'), nullable=False)
+    settlement_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure_settlement.id'), nullable=False)
     settlement = relationship('DisclosureSettlement', foreign_keys=[settlement_id])
 
     address = sa.Column(sa.String(), nullable=False)
@@ -124,6 +142,6 @@ class GetDisclosureRequest:
 class GetDisclosureResponse:
     success: bool
     message: str = field(default=None)
-    measurements: SummaryGroup = field(default=None)
-    groups: List[SummaryGroup] = field(default_factory=list)
+    measurements: List[int] = field(default_factory=list)
+    ggos: List[SummaryGroup] = field(default_factory=list)
     labels: List[str] = field(default_factory=list)

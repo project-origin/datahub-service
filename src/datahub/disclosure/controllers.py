@@ -1,12 +1,12 @@
 from uuid import uuid4
 import marshmallow_dataclass as md
 
-from datahub.http import Controller
-from datahub.common import DateTimeRange
+from datahub.http import Controller, BadRequest
 from datahub.db import atomic, inject_session
 from datahub.auth import Token, require_oauth, inject_token
-from datahub.measurements import MeasurementQuery
+from datahub.meteringpoints import MeteringPoint, MeteringPointQuery
 
+from .queries import DisclosureRetiredGgoQuery
 from .models import (
     Disclosure,
     CreateDisclosureRequest,
@@ -55,14 +55,35 @@ class CreateDisclosure(Controller):
         )
 
         for gsrn in request.gsrn:
-            disclosure.add_gsrn(gsrn)
+            disclosure.add_meteringpoint(
+                self.get_meteringpoint(sub, gsrn, session))
 
         session.add(disclosure)
         session.flush()
 
         return disclosure
 
-import origin_ledger_sdk
+    def get_meteringpoint(self, sub, gsrn, session):
+        """
+        :param str sub:
+        :param str gsrn:
+        :param Session session:
+        :rtype: MeteringPoint
+        """
+        meteringpoint = MeteringPointQuery(session) \
+            .has_sub(sub) \
+            .has_gsrn(gsrn) \
+            .is_consumption() \
+            .one_or_none()
+
+        if meteringpoint is None:
+            raise BadRequest((
+                f'MeteringPoint with GSRN "{gsrn}" is not available, '
+                'or is not eligible for disclosure'
+            ))
+
+        return meteringpoint
+
 
 class GetDisclosure(Controller):
     """
@@ -85,19 +106,35 @@ class GetDisclosure(Controller):
         if disclosure is None:
             return GetDisclosureResponse(
                 success=False,
-                message=f'Disclosure by ID {request.id} not found',
+                message=f'Disclosure with ID "{request.id}" not found',
             )
 
-        begin_range = DateTimeRange.from_date_range(request.date_range)
+        # We don't need to set the date outer boundaries to min/max at those
+        # of the disclosure, as disclosure.get_measurements() does this already
+        begin_range = request.date_range.to_datetime_range()
 
-        measurement_summary = MeasurementQuery(session) \
-            .has_any_gsrn(disclosure.get_gsrn()) \
+        # Get summary of the measurements which were published
+        measurement_summary = disclosure \
+            .get_measurements() \
             .begins_within(begin_range) \
             .get_summary(request.resolution, []) \
             .fill(begin_range)
 
+        if measurement_summary.groups:
+            measurements = measurement_summary.groups[0].values
+        else:
+            measurements = []
+
+        # Get summary of the GGOs retired to the disclosed MeteringPoints
+        retired_ggo_summary = DisclosureRetiredGgoQuery(session) \
+            .from_disclosure(disclosure) \
+            .begins_within(begin_range) \
+            .get_summary(request.resolution, ['technologyCode', 'fuelCode']) \
+            .fill(begin_range)
+
         return GetDisclosureResponse(
             success=True,
-            measurements=measurement_summary.groups,
+            measurements=measurements,
+            ggos=retired_ggo_summary.groups,
             labels=measurement_summary.labels,
         )

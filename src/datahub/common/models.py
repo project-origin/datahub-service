@@ -33,6 +33,23 @@ class DateRange:
                 'end': ['Must be after begin'],
             })
 
+    def with_boundaries(self, begin, end):
+        """
+        :param date begin:
+        :param date end:
+        :rtype: DateRange
+        """
+        return DateRange(
+            begin=max(begin, min(end, self.begin)),
+            end=max(begin, min(end, self.end)),
+        )
+
+    def to_datetime_range(self):
+        """
+        :rtype: DateTimeRange
+        """
+        return DateTimeRange.from_date_range(self)
+
 
 @dataclass
 class DateTimeRange:
