@@ -52,6 +52,7 @@ def start_import_measurements_pipeline_for(subject, gsrn):
 
 @celery_app.task(
     name='import_measurements.get_distinct_gsrn',
+    queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,
@@ -82,6 +83,7 @@ def get_distinct_gsrn(session):
 
 @celery_app.task(
     name='import_measurements.import_measurements',
+    queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,
@@ -152,6 +154,7 @@ def import_measurements(subject, gsrn, session):
 
 @celery_app.task(
     name='import_measurements.issue_ggos',
+    queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,
@@ -201,6 +204,7 @@ def issue_ggos(subject, gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.submit_to_ledger',
+    queue='import-measurements',
     autoretry_for=(ols.LedgerException,),
     retry_backoff=2,
     max_retries=5,
@@ -281,6 +285,7 @@ def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
 @celery_app.task(
     bind=True,
     name='import_measurements.poll_batch_status',
+    queue='import-measurements',
     autoretry_for=(ols.LedgerException,),
     retry_backoff=2,
     max_retries=5,
@@ -321,6 +326,7 @@ def poll_batch_status(task, handle, subject):
 
 @celery_app.task(
     name='import_measurements.invoke_webhook',
+    queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,

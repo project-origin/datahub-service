@@ -57,3 +57,23 @@ class DateTimeRange:
             begin=datetime.fromordinal(date_range.begin.toordinal()),
             end=datetime.fromordinal(date_range.end.toordinal()) + timedelta(days=1),
         )
+
+
+class SummaryResolution(Enum):
+    """
+    TODO
+    """
+    ALL = 'all'
+    YEAR = 'year'
+    MONTH = 'month'
+    DAY = 'day'
+    HOUR = 'hour'
+
+
+@dataclass
+class SummaryGroup:
+    """
+    TODO
+    """
+    group: List[str] = field(default_factory=list)
+    values: List[int] = field(default_factory=list)

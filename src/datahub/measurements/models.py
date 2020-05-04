@@ -2,14 +2,13 @@ import sqlalchemy as sa
 import origin_ledger_sdk as ols
 from sqlalchemy.orm import relationship
 from bip32utils import BIP32Key
-from enum import Enum
 from typing import List
 from datetime import datetime
 from dataclasses import dataclass, field
 from marshmallow import validate
 
 from datahub.db import ModelBase
-from datahub.common import DateTimeRange
+from datahub.common import DateTimeRange, SummaryResolution, SummaryGroup
 from datahub.validators import unique_values
 from datahub.meteringpoints import MeasurementType
 
@@ -127,30 +126,10 @@ class MeasurementFilters:
     TODO
     """
     begin: datetime = field(default=None)
-    begin_range: DateTimeRange = field(default_factory=None, metadata=dict(data_key='beginRange'))
+    begin_range: DateTimeRange = field(default=None, metadata=dict(data_key='beginRange'))
     sector: List[str] = field(default_factory=list)
     gsrn: List[str] = field(default_factory=list)
     type: MeasurementType = field(default=None, metadata=dict(by_value=True))
-
-
-class SummaryResolution(Enum):
-    """
-    TODO
-    """
-    ALL = 'all'
-    YEAR = 'year'
-    MONTH = 'month'
-    DAY = 'day'
-    HOUR = 'hour'
-
-
-@dataclass
-class SummaryGroup:
-    """
-    TODO
-    """
-    group: List[str] = field(default_factory=list)
-    values: List[int] = field(default_factory=list)
 
 
 # -- GetMeasurement request and response -------------------------------------

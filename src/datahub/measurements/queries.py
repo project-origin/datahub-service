@@ -109,6 +109,15 @@ class MeasurementQuery(object):
             Measurement.gsrn == gsrn,
         ))
 
+    def has_any_gsrn(self, gsrn):
+        """
+        :param list[str] gsrn:
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.gsrn.in_(gsrn),
+        ))
+
     def is_type(self, type):
         """
         TODO
@@ -235,8 +244,10 @@ class MeasurementSummary(object):
     def fill(self, fill_range):
         """
         :param DateTimeRange fill_range:
+        :rtype: MeasurementSummary
         """
         self.fill_range = fill_range
+        return self
 
     @property
     def labels(self):
