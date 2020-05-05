@@ -3,7 +3,13 @@ from functools import lru_cache
 from itertools import groupby
 from dateutil.relativedelta import relativedelta
 
-from datahub.common import DateTimeRange, SummaryResolution, SummaryGroup
+from datahub.measurements import Measurement
+from datahub.common import (
+    DateTimeRange,
+    SummaryResolution,
+    SummaryGroup,
+    LabelRange,
+)
 
 from .models import DisclosureRetiredGgo, DisclosureSettlement, Disclosure
 
@@ -23,7 +29,8 @@ class DisclosureRetiredGgoQuery(object):
         else:
             self.q = session.query(DisclosureRetiredGgo) \
                 .join(DisclosureSettlement, DisclosureSettlement.id == DisclosureRetiredGgo.settlement_id) \
-                .join(Disclosure, Disclosure.id == DisclosureSettlement.disclosure_id)
+                .join(Disclosure, Disclosure.id == DisclosureSettlement.disclosure_id) \
+                .join(Measurement, Measurement.id == DisclosureSettlement.measurement_id)
 
     def __iter__(self):
         return iter(self.q)
@@ -40,6 +47,17 @@ class DisclosureRetiredGgoQuery(object):
         """
         return self.__class__(self.session, self.q.filter(
             Disclosure.id == disclosure.id,
+        ))
+
+    def has_gsrn(self, gsrn):
+        """
+        TODO
+
+        :param str gsrn:
+        :rtype: DisclosureRetiredGgoQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.gsrn == gsrn,
         ))
 
     def begins_within(self, begin_range):
@@ -130,16 +148,11 @@ class DisclosureRetiredGgoSummary(object):
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
         else:
-            format = self.RESOLUTIONS_PYTHON[self.resolution]
-            step = self.LABEL_STEP[self.resolution]
-            begin = self.fill_range.begin
-            labels = []
-
-            while begin < self.fill_range.end:
-                labels.append(begin.strftime(format))
-                begin += step
-
-            return labels
+            return list(LabelRange(
+                self.fill_range.begin,
+                self.fill_range.end,
+                self.resolution,
+            ))
 
     @property
     def groups(self):

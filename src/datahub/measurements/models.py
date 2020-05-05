@@ -85,6 +85,13 @@ class Measurement(ModelBase):
         """
         return ols.generate_address(ols.AddressPrefix.MEASUREMENT, self.key.PublicKey())
 
+    @property
+    def settlement_address(self):
+        """
+        :rtype: str
+        """
+        return ols.generate_address(ols.AddressPrefix.SETTLEMENT, self.key.PublicKey())
+
     def get_ledger_publishing_request(self):
         """
         :rtype: PublishMeasurementRequest

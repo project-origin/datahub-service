@@ -52,8 +52,8 @@ def wrap_task(pipeline, task, title=None):
             extra.update({
                 'task': task,
                 'pipeline': pipeline,
-                'args': str(args),
-                'kwargs': str(kwargs),
+                'task_args': str(args),
+                'task_kwargs': str(kwargs),
             })
             if title:
                 formatted_title = title % kwargs

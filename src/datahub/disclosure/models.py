@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from enum import Enum
 from sqlalchemy.orm import relationship
 from typing import List
 from datetime import date
@@ -11,9 +12,17 @@ from datahub.common import SummaryResolution, SummaryGroup, DateRange
 from datahub.meteringpoints import MeteringPoint
 
 
+class DisclosureState(Enum):
+    PENDING = 'PENDING'
+    PROCESSING = 'PROCESSING'
+    AVAILABLE = 'AVAILABLE'
+
+
 class Disclosure(ModelBase):
     """
-    TODO
+    banner_status = postgresql.ENUM('PENDING', 'PROCESSING', 'AVAILABLE', name='disclosurestate')
+    banner_status.create(op.get_bind())
+    op.add_column('disclosure', sa.Column('state', sa.Enum('PENDING', 'PROCESSING', 'AVAILABLE', name='disclosurestate'), nullable=False))
     """
     __tablename__ = 'disclosure'
     __table_args__ = (
@@ -23,10 +32,15 @@ class Disclosure(ModelBase):
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
     public_id = sa.Column(sa.String(), index=True)
     created = sa.Column(sa.DateTime(timezone=True), server_default=sa.func.now())
+    state = sa.Column(sa.Enum(DisclosureState), nullable=False)
 
     sub = sa.Column(sa.String(), index=True, nullable=False)
     begin = sa.Column(sa.Date(), nullable=False)
     end = sa.Column(sa.Date(), nullable=False)
+
+    publicize_meteringpoints = sa.Column(sa.Boolean(), nullable=False)
+    publicize_gsrn = sa.Column(sa.Boolean(), nullable=False)
+    publicize_physical_address = sa.Column(sa.Boolean(), nullable=False)
 
     meteringpoints = relationship('DisclosureMeteringPoint', back_populates='disclosure', uselist=True)
 
@@ -64,6 +78,9 @@ class DisclosureMeteringPoint(ModelBase):
     TODO
     """
     __tablename__ = 'disclosure_meteringpoint'
+    __table_args__ = (
+        sa.UniqueConstraint('disclosure_id', 'gsrn'),
+    )
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
@@ -71,6 +88,7 @@ class DisclosureMeteringPoint(ModelBase):
     disclosure = relationship('Disclosure', foreign_keys=[disclosure_id])
 
     gsrn = sa.Column(sa.String(), sa.ForeignKey('meteringpoint.gsrn'), nullable=False)
+    meteringpoint = relationship('MeteringPoint', foreign_keys=[gsrn])
 
 
 class DisclosureSettlement(ModelBase):
@@ -78,6 +96,10 @@ class DisclosureSettlement(ModelBase):
     TODO
     """
     __tablename__ = 'disclosure_settlement'
+    __table_args__ = (
+        sa.UniqueConstraint('disclosure_id', 'measurement_id'),
+        sa.UniqueConstraint('disclosure_id', 'address'),
+    )
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
@@ -97,6 +119,9 @@ class DisclosureRetiredGgo(ModelBase):
     TODO
     """
     __tablename__ = 'disclosure_ggo'
+    __table_args__ = (
+        sa.UniqueConstraint('settlement_id', 'address'),
+    )
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
@@ -119,6 +144,9 @@ class DisclosureRetiredGgo(ModelBase):
 class CreateDisclosureRequest:
     begin: date
     end: date
+    publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
+    publicize_gsrn: bool = field(metadata=dict(data_key='publicizeGsrn'))
+    publicize_physical_address: bool = field(metadata=dict(data_key='publicizePhysicalAddress'))
     gsrn: List[str] = field(metadata=dict(validate=validate.Length(min=1)))
 
 
@@ -132,6 +160,15 @@ class CreateDisclosureResponse:
 
 
 @dataclass
+class DisclosureDataSeries:
+    gsrn: str = field(default=None)
+    address: str = field(default=None)
+    measurements: List[int] = field(default_factory=list)
+    ggos: List[SummaryGroup] = field(default_factory=list)
+
+
+
+@dataclass
 class GetDisclosureRequest:
     id: str
     date_range: DateRange = field(metadata=dict(data_key='dateRange'))
@@ -142,6 +179,6 @@ class GetDisclosureRequest:
 class GetDisclosureResponse:
     success: bool
     message: str = field(default=None)
-    measurements: List[int] = field(default_factory=list)
-    ggos: List[SummaryGroup] = field(default_factory=list)
+    state: DisclosureState = field(default=None, metadata=dict(by_value=True))
     labels: List[str] = field(default_factory=list)
+    data: List[DisclosureDataSeries] = field(default_factory=list)

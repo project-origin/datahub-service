@@ -393,10 +393,10 @@
         },
         "origin-ledger-sdk": {
             "hashes": [
-                "sha256:c69257caf0608b0f6346ad52b65806e83a979d84cc09e7f3959edf1268dd5185"
+                "sha256:fb5b8375ea8f133221bfd16ba427286cbdc6ab18857a002093408acd8d3c4451"
             ],
             "index": "pypi",
-            "version": "==0.1.13"
+            "version": "==0.1.15"
         },
         "protobuf": {
             "hashes": [

@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import joinedload
 
 from datahub.ggo import Ggo
-from datahub.common import DateTimeRange
+from datahub.common import DateTimeRange, LabelRange
 from datahub.meteringpoints import MeteringPoint, MeasurementType
 
 from .models import (
@@ -241,16 +241,11 @@ class MeasurementSummary(object):
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
         else:
-            format = self.RESOLUTIONS_PYTHON[self.resolution]
-            step = self.LABEL_STEP[self.resolution]
-            begin = self.fill_range.begin
-            labels = []
-
-            while begin < self.fill_range.end:
-                labels.append(begin.strftime(format))
-                begin += step
-
-            return labels
+            return list(LabelRange(
+                self.fill_range.begin,
+                self.fill_range.end,
+                self.resolution,
+            ))
 
     @property
     def groups(self):

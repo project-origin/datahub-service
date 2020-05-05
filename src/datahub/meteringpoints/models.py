@@ -49,6 +49,16 @@ class MeteringPoint(ModelBase):
         """
         return BIP32Key.fromExtendedKey(self.ledger_extended_key)
 
+    @property
+    def address(self):
+        """
+        :rtype: str
+        """
+        return (
+            f'{self.street_name} {self.building_number}, '
+            f'{self.postcode} {self.city_name}'
+        )
+
     def is_producer(self):
         """
         :rtype: bool
