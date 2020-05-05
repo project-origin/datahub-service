@@ -89,3 +89,34 @@ spec:
                 name: datahub-system-secret
             - secretRef:
                 name: datahub-db-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datahub-disclosure-worker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datahub-disclosure-worker-deployment
+  template:
+    metadata:
+      labels:
+        app: datahub-disclosure-worker-deployment
+    spec:
+      containers:
+        - name: datahub-disclosure-worker-container
+          image: projectorigin/datahub-service:{{ .Values.tag }}
+          args: ["pipenv", "run", "disclosure-worker"]
+          envFrom:
+            - configMapRef:
+                name: namespace-config
+            - configMapRef:
+                name: datahub-config
+            - secretRef:
+                name: eloverblik-secret
+            - secretRef:
+                name: datahub-system-secret
+            - secretRef:
+                name: datahub-db-secret
