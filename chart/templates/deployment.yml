@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: datahub-deployment
-  namespace: project-origin
 spec:
   replicas: 1
   selector:
@@ -15,7 +14,7 @@ spec:
     spec:
       containers:
         - name: datahub-container
-          image: projectorigin/datahub-service:2164
+          image: projectorigin/datahub-service:{{ .Values.tag }}
           ports:
             - containerPort: 8089
           envFrom:
@@ -34,7 +33,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: datahub-beat-deployment
-  namespace: project-origin
 spec:
   replicas: 1
   selector:
@@ -47,7 +45,7 @@ spec:
     spec:
       containers:
         - name: datahub-beat-container
-          image: projectorigin/datahub-service:2164
+          image: projectorigin/datahub-service:{{ .Values.tag }}
           args: ["pipenv", "run", "beat"]
           envFrom:
             - configMapRef:
@@ -66,7 +64,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: datahub-worker-deployment
-  namespace: project-origin
 spec:
   replicas: 1
   selector:
@@ -79,7 +76,7 @@ spec:
     spec:
       containers:
         - name: datahub-worker-container
-          image: projectorigin/datahub-service:2164
+          image: projectorigin/datahub-service:{{ .Values.tag }}
           args: ["pipenv", "run", "worker"]
           envFrom:
             - configMapRef:
