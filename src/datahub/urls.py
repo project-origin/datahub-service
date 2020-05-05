@@ -2,6 +2,7 @@ from .ggo import controllers as ggo
 from .auth import controllers as auth
 from .measurements import controllers as measurements
 from .meteringpoints import controllers as meteringpoints
+from .disclosure import controllers as disclosure
 from .webhooks import controllers as webhooks
 
 from .meteringpoints import MeasurementType
@@ -36,6 +37,12 @@ urls = (
         MeasurementType.CONSUMPTION)),
     ('/measurements/produced', measurements.GetMeasurement(
         MeasurementType.PRODUCTION)),
+
+
+    # -- Disclosure ----------------------------------------------------------
+
+    ('/disclosure', disclosure.GetDisclosure()),
+    ('/disclosure/create', disclosure.CreateDisclosure()),
 
 
     # -- Webhooks ------------------------------------------------------------

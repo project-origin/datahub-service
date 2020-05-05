@@ -37,7 +37,6 @@ class MeasurementImportController(object):
 
         # Up until and including yesterday (datetime_to is excluded)
         datetime_to = datetime.fromordinal(date.today().toordinal())
-        # datetime_to = datetime_to.replace(tzinfo=timezone.utc)
 
         return self.import_measurements(
             sub=meteringpoint.sub,

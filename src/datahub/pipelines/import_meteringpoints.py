@@ -26,6 +26,7 @@ def start_import_meteringpoints_pipeline(subject):
 
 @celery_app.task(
     name='import_meteringpoints.import_meteringpoints',
+    queue='import-meteringpoints',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,
@@ -46,6 +47,7 @@ def import_meteringpoints(subject):
 
 @celery_app.task(
     name='import_meteringpoints.invoke_webhook',
+    queue='import-meteringpoints',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,

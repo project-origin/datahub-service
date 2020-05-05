@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import joinedload
 
 from datahub.ggo import Ggo
-from datahub.common import DateTimeRange
+from datahub.common import DateTimeRange, LabelRange
 from datahub.meteringpoints import MeteringPoint, MeasurementType
 
 from .models import (
@@ -66,8 +66,6 @@ class MeasurementQuery(object):
 
     def belongs_to(self, sub):
         """
-        TODO
-
         :param str sub:
         :rtype: MeasurementQuery
         """
@@ -77,8 +75,6 @@ class MeasurementQuery(object):
 
     def begins_at(self, begin):
         """
-        TODO
-
         :param datetime begin:
         :rtype: MeasurementQuery
         """
@@ -88,8 +84,6 @@ class MeasurementQuery(object):
 
     def begins_within(self, begin_range):
         """
-        TODO
-
         :param DateTimeRange begin_range:
         :rtype: MeasurementQuery
         """
@@ -100,8 +94,6 @@ class MeasurementQuery(object):
 
     def has_gsrn(self, gsrn):
         """
-        TODO
-
         :param str gsrn:
         :rtype: MeasurementQuery
         """
@@ -109,10 +101,17 @@ class MeasurementQuery(object):
             Measurement.gsrn == gsrn,
         ))
 
+    def has_any_gsrn(self, gsrn):
+        """
+        :param list[str] gsrn:
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.gsrn.in_(gsrn),
+        ))
+
     def is_type(self, type):
         """
-        TODO
-
         :param MeasurementType type:
         :rtype: MeasurementQuery
         """
@@ -122,24 +121,18 @@ class MeasurementQuery(object):
 
     def is_production(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.PRODUCTION)
 
     def is_consumption(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.CONSUMPTION)
 
     def needs_ggo_issued(self):
         """
-        TODO
-
         :rtype: MeasurementQuery
         """
         q = self.q.filter(Ggo.id.is_(None))
@@ -168,8 +161,6 @@ class MeasurementQuery(object):
 
     def get_last_measured_begin(self):
         """
-        TODO
-
         :rtype: datetime
         """
         return self.session.query(
@@ -235,8 +226,10 @@ class MeasurementSummary(object):
     def fill(self, fill_range):
         """
         :param DateTimeRange fill_range:
+        :rtype: MeasurementSummary
         """
         self.fill_range = fill_range
+        return self
 
     @property
     def labels(self):
@@ -248,16 +241,11 @@ class MeasurementSummary(object):
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
         else:
-            format = self.RESOLUTIONS_PYTHON[self.resolution]
-            step = self.LABEL_STEP[self.resolution]
-            begin = self.fill_range.begin
-            labels = []
-
-            while begin < self.fill_range.end:
-                labels.append(begin.strftime(format))
-                begin += step
-
-            return labels
+            return list(LabelRange(
+                self.fill_range.begin,
+                self.fill_range.end,
+                self.resolution,
+            ))
 
     @property
     def groups(self):
