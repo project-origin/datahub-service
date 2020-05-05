@@ -13,86 +13,14 @@ from .models import (
     Disclosure,
     DisclosureState,
     DisclosureDataSeries,
-    CreateDisclosureRequest,
-    CreateDisclosureResponse,
     GetDisclosureRequest,
     GetDisclosureResponse,
+    GetDisclosureListResponse,
+    CreateDisclosureRequest,
+    CreateDisclosureResponse,
+    DeleteDisclosureRequest,
+    DeleteDisclosureResponse,
 )
-
-
-class CreateDisclosure(Controller):
-    """
-    TODO
-    """
-    Request = md.class_schema(CreateDisclosureRequest)
-    Response = md.class_schema(CreateDisclosureResponse)
-
-    @require_oauth('ggo.read')
-    @inject_token
-    def handle_request(self, request, token):
-        """
-        :param CreateDisclosureRequest request:
-        :param Token token:
-        :rtype: CreateDisclosureResponse
-        """
-        new_disclosure = self.create_disclosure(
-            request, token.subject)
-
-        start_compile_disclosure_pipeline(new_disclosure)
-
-        return CreateDisclosureResponse(
-            success=True,
-            id=new_disclosure.public_id,
-        )
-
-    @atomic
-    def create_disclosure(self, request, sub, session):
-        """
-        :param CreateDisclosureRequest request:
-        :param str sub:
-        :param Session session:
-        :rtype: Disclosure
-        """
-        disclosure = Disclosure(
-            public_id=str(uuid4()),
-            state=DisclosureState.PENDING,
-            sub=sub,
-            begin=request.begin,
-            end=request.end,
-            publicize_meteringpoints=request.publicize_meteringpoints,
-            publicize_gsrn=request.publicize_gsrn,
-            publicize_physical_address=request.publicize_physical_address,
-        )
-
-        for gsrn in request.gsrn:
-            disclosure.add_meteringpoint(
-                self.get_meteringpoint(sub, gsrn, session))
-
-        session.add(disclosure)
-        session.flush()
-
-        return disclosure
-
-    def get_meteringpoint(self, sub, gsrn, session):
-        """
-        :param str sub:
-        :param str gsrn:
-        :param Session session:
-        :rtype: MeteringPoint
-        """
-        meteringpoint = MeteringPointQuery(session) \
-            .has_sub(sub) \
-            .has_gsrn(gsrn) \
-            .is_consumption() \
-            .one_or_none()
-
-        if meteringpoint is None:
-            raise BadRequest((
-                f'MeteringPoint with GSRN "{gsrn}" is not available, '
-                'or is not eligible for disclosure'
-            ))
-
-        return meteringpoint
 
 
 class GetDisclosure(Controller):
@@ -212,3 +140,137 @@ class GetDisclosure(Controller):
             .fill(begin_range)
 
         return summary.groups
+
+
+class GetDisclosureList(Controller):
+    """
+    TODO
+    """
+    Response = md.class_schema(GetDisclosureListResponse)
+
+    @require_oauth('ggo.read')  # TODO disclosure
+    @inject_token
+    @inject_session
+    def handle_request(self, token, session):
+        """
+        :param Token token:
+        :param Session session:
+        :rtype: GetDisclosureListResponse
+        """
+        disclosures = session.query(Disclosure) \
+            .filter(Disclosure.sub == token.subject) \
+            .all()
+
+        return GetDisclosureListResponse(
+            success=True,
+            disclosures=disclosures,
+        )
+
+
+class CreateDisclosure(Controller):
+    """
+    TODO
+    """
+    Request = md.class_schema(CreateDisclosureRequest)
+    Response = md.class_schema(CreateDisclosureResponse)
+
+    @require_oauth('ggo.read')  # TODO disclosure
+    @inject_token
+    def handle_request(self, request, token):
+        """
+        :param CreateDisclosureRequest request:
+        :param Token token:
+        :rtype: CreateDisclosureResponse
+        """
+        new_disclosure = self.create_disclosure(
+            request, token.subject)
+
+        start_compile_disclosure_pipeline(new_disclosure)
+
+        return CreateDisclosureResponse(
+            success=True,
+            id=new_disclosure.public_id,
+        )
+
+    @atomic
+    def create_disclosure(self, request, sub, session):
+        """
+        :param CreateDisclosureRequest request:
+        :param str sub:
+        :param Session session:
+        :rtype: Disclosure
+        """
+        disclosure = Disclosure(
+            public_id=str(uuid4()),
+            state=DisclosureState.PENDING,
+            sub=sub,
+            begin=request.begin,
+            end=request.end,
+            publicize_meteringpoints=request.publicize_meteringpoints,
+            publicize_gsrn=request.publicize_gsrn,
+            publicize_physical_address=request.publicize_physical_address,
+        )
+
+        for gsrn in request.gsrn:
+            disclosure.add_meteringpoint(
+                self.get_meteringpoint(sub, gsrn, session))
+
+        session.add(disclosure)
+        session.flush()
+
+        return disclosure
+
+    def get_meteringpoint(self, sub, gsrn, session):
+        """
+        :param str sub:
+        :param str gsrn:
+        :param Session session:
+        :rtype: MeteringPoint
+        """
+        meteringpoint = MeteringPointQuery(session) \
+            .has_sub(sub) \
+            .has_gsrn(gsrn) \
+            .is_consumption() \
+            .one_or_none()
+
+        if meteringpoint is None:
+            raise BadRequest((
+                f'MeteringPoint with GSRN "{gsrn}" is not available, '
+                'or is not eligible for disclosure'
+            ))
+
+        return meteringpoint
+
+
+class DeleteDisclosure(Controller):
+    """
+    TODO
+    """
+    Request = md.class_schema(DeleteDisclosureRequest)
+    Response = md.class_schema(DeleteDisclosureResponse)
+
+    @require_oauth('ggo.read')  # TODO disclosure
+    @inject_token
+    @atomic
+    def handle_request(self, request, token, session):
+        """
+        :param DeleteDisclosureRequest request:
+        :param Token token:
+        :param Session session:
+        :rtype: DeleteDisclosureResponse
+        """
+        disclosure = session.query(Disclosure) \
+            .filter(Disclosure.public_id == request.id) \
+            .one_or_none()
+
+        if disclosure is None:
+            return DeleteDisclosureResponse(
+                success=False,
+                message=f'Disclosure with ID "{request.id}" not found',
+            )
+
+        session.delete(disclosure)
+
+        return DeleteDisclosureResponse(
+            success=True,
+        )

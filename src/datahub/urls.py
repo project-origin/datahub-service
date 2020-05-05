@@ -42,7 +42,9 @@ urls = (
     # -- Disclosure ----------------------------------------------------------
 
     ('/disclosure', disclosure.GetDisclosure()),
+    ('/disclosure/list', disclosure.GetDisclosureList()),
     ('/disclosure/create', disclosure.CreateDisclosure()),
+    ('/disclosure/delete', disclosure.DeleteDisclosure()),
 
 
     # -- Webhooks ------------------------------------------------------------

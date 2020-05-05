@@ -4,7 +4,8 @@ from sqlalchemy.orm import relationship
 from typing import List
 from datetime import date
 from dataclasses import dataclass, field
-from marshmallow import validate
+from marshmallow import validate, fields
+from marshmallow_dataclass import NewType
 
 from datahub.db import ModelBase, Session
 from datahub.measurements import MeasurementQuery
@@ -137,23 +138,17 @@ class DisclosureRetiredGgo(ModelBase):
     fuel_code = sa.Column(sa.String(), nullable=False)
 
 
-# -- CreateDisclosure request and response -----------------------------------
+# -- Common ------------------------------------------------------------------
 
 
 @dataclass
-class CreateDisclosureRequest:
+class MappedDisclosure:
+    public_id: str = field(metadata=dict(data_key='id'))
     begin: date
     end: date
     publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
     publicize_gsrn: bool = field(metadata=dict(data_key='publicizeGsrn'))
     publicize_physical_address: bool = field(metadata=dict(data_key='publicizePhysicalAddress'))
-    gsrn: List[str] = field(metadata=dict(validate=validate.Length(min=1)))
-
-
-@dataclass
-class CreateDisclosureResponse:
-    success: bool
-    id: str
 
 
 # -- GetDisclosure request and response --------------------------------------
@@ -182,3 +177,45 @@ class GetDisclosureResponse:
     state: DisclosureState = field(default=None, metadata=dict(by_value=True))
     labels: List[str] = field(default_factory=list)
     data: List[DisclosureDataSeries] = field(default_factory=list)
+
+
+# -- GetDisclosureList request and response ----------------------------------
+
+
+@dataclass
+class GetDisclosureListResponse:
+    success: bool
+    disclosures: List[MappedDisclosure] = field(default_factory=list)
+
+
+# -- CreateDisclosure request and response -----------------------------------
+
+
+@dataclass
+class CreateDisclosureRequest:
+    begin: date
+    end: date
+    publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
+    publicize_gsrn: bool = field(metadata=dict(data_key='publicizeGsrn'))
+    publicize_physical_address: bool = field(metadata=dict(data_key='publicizePhysicalAddress'))
+    gsrn: List[str] = field(metadata=dict(validate=validate.Length(min=1)))
+
+
+@dataclass
+class CreateDisclosureResponse:
+    success: bool
+    id: str
+
+
+# -- DeleteDisclosure request and response -----------------------------------
+
+
+@dataclass
+class DeleteDisclosureRequest:
+    id: str
+
+
+@dataclass
+class DeleteDisclosureResponse:
+    success: bool
+    message: str = field(default=None)
