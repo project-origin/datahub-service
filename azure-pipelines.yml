@@ -8,12 +8,14 @@ resources:
 variables:
   imageName: 'projectorigin/datahub-service'
   vmImageName: 'ubuntu-latest'
+  kubeCon: alpha-origin-con
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
     tag: '$(Build.BuildId)'
-    namespace: 'project-origin'
+    namespace: 'alpha-project-origin'
   ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
     tag: 'dev.$(Build.BuildId)'
     namespace: 'dev-project-origin'
+
 
 stages:
 - stage: build_and_publish
@@ -55,7 +57,7 @@ stages:
         displayName: Helm upgrade
         inputs:
           connectionType: 'Kubernetes Service Connection'
-          kubernetesServiceConnection: 'origin-kubernetes-connection'
+          kubernetesServiceConnection: '$(kubeCon)'
           namespace: $(namespace)
           command: upgrade
           chartType: filepath
