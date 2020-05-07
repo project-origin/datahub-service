@@ -138,7 +138,7 @@ class GetDisclosure(Controller):
             .begins_within(begin_range)
 
         if gsrn:
-            measurements.has_gsrn(gsrn)
+            measurements = measurements.has_gsrn(gsrn)
 
         summary = measurements \
             .get_summary(resolution, []) \
@@ -158,7 +158,7 @@ class GetDisclosure(Controller):
             .begins_within(begin_range)
 
         if gsrn:
-            ggos.has_gsrn(gsrn)
+            ggos = ggos.has_gsrn(gsrn)
 
         summary = ggos \
             .get_summary(resolution, ['technologyCode', 'fuelCode']) \
