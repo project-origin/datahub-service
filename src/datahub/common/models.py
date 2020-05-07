@@ -33,6 +33,13 @@ class DateRange:
                 'end': ['Must be after begin'],
             })
 
+    @property
+    def delta(self):
+        """
+        :rtype: timedelta
+        """
+        return self.end - self.begin
+
     def with_boundaries(self, begin, end):
         """
         :param date begin:
@@ -74,6 +81,13 @@ class DateTimeRange:
             begin=datetime.fromordinal(date_range.begin.toordinal()),
             end=datetime.fromordinal(date_range.end.toordinal()) + timedelta(days=1),
         )
+
+    @property
+    def delta(self):
+        """
+        :rtype: timedelta
+        """
+        return self.end - self.begin
 
 
 class SummaryResolution(Enum):

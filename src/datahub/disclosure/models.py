@@ -38,12 +38,15 @@ class Disclosure(ModelBase):
     sub = sa.Column(sa.String(), index=True, nullable=False)
     begin = sa.Column(sa.Date(), nullable=False)
     end = sa.Column(sa.Date(), nullable=False)
+    name = sa.Column(sa.String(), nullable=False)
+    description = sa.Column(sa.String())
 
     publicize_meteringpoints = sa.Column(sa.Boolean(), nullable=False)
     publicize_gsrn = sa.Column(sa.Boolean(), nullable=False)
     publicize_physical_address = sa.Column(sa.Boolean(), nullable=False)
 
-    meteringpoints = relationship('DisclosureMeteringPoint', back_populates='disclosure', uselist=True)
+    meteringpoints = relationship('DisclosureMeteringPoint', cascade='all,delete', back_populates='disclosure', uselist=True)
+    settlements = relationship('DisclosureSettlement', cascade='all,delete', back_populates='disclosure', uselist=True)
 
     @property
     def date_range(self):
@@ -110,7 +113,7 @@ class DisclosureSettlement(ModelBase):
     measurement_id = sa.Column(sa.Integer(), sa.ForeignKey('measurement.id'), index=True)
     measurement = relationship('Measurement', foreign_keys=[measurement_id])
 
-    ggos = relationship('DisclosureRetiredGgo', back_populates='settlement', uselist=True)
+    ggos = relationship('DisclosureRetiredGgo', cascade='all,delete', back_populates='settlement', uselist=True)
 
     address = sa.Column(sa.String(), nullable=False)
 
@@ -144,6 +147,8 @@ class DisclosureRetiredGgo(ModelBase):
 @dataclass
 class MappedDisclosure:
     public_id: str = field(metadata=dict(data_key='id'))
+    name: str
+    description: str
     begin: date
     end: date
     publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
@@ -162,12 +167,11 @@ class DisclosureDataSeries:
     ggos: List[SummaryGroup] = field(default_factory=list)
 
 
-
 @dataclass
 class GetDisclosureRequest:
     id: str
-    date_range: DateRange = field(metadata=dict(data_key='dateRange'))
-    resolution: SummaryResolution = field(metadata=dict(by_value=True))
+    resolution: SummaryResolution = field(default=None, metadata=dict(by_value=True))
+    date_range: DateRange = field(default=None, metadata=dict(data_key='dateRange'))
 
 
 @dataclass
@@ -193,6 +197,8 @@ class GetDisclosureListResponse:
 
 @dataclass
 class CreateDisclosureRequest:
+    name: str
+    description: str
     begin: date
     end: date
     publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
