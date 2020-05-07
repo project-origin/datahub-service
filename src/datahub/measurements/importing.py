@@ -1,10 +1,10 @@
 import logging
 from datetime import date, datetime, timedelta, timezone
+from dateutil.relativedelta import relativedelta
 
 from datahub import logger
 from datahub.db import atomic, inject_session
 from datahub.services import eloverblik as e
-from datahub.settings import FIRST_MEASUREMENT_TIME
 from datahub.meteringpoints import MeteringPoint
 
 from .models import Measurement
@@ -31,9 +31,11 @@ class MeasurementImportController(object):
             .get_last_measured_begin()
 
         # From latest measurement plus one hour
-        datetime_from = latest_begin + self.MEASUREMENT_DURATION \
-            if latest_begin \
-            else FIRST_MEASUREMENT_TIME
+        if latest_begin:
+            datetime_from = latest_begin + self.MEASUREMENT_DURATION
+        else:
+            datetime_from = (datetime.now() - relativedelta(months=1)) \
+                .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         # Up until and including yesterday (datetime_to is excluded)
         datetime_to = datetime.fromordinal(date.today().toordinal())
