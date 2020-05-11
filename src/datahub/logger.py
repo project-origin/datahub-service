@@ -12,10 +12,12 @@ logger = logging.getLogger(PROJECT_NAME)
 if AZURE_APP_INSIGHTS_CONN_STRING:
     print('Exporting logs to Azure Application Insight', flush=True)
 
-    logger.addHandler(AzureLogHandler(
+    handler = AzureLogHandler(
         connection_string=AZURE_APP_INSIGHTS_CONN_STRING,
         export_interval=5.0,
-    ))
+    )
+
+    logger.addHandler(handler)
 
     def __route_extras_to_azure(f, *args, extra=None, **kwargs):
         if extra is None:

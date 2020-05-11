@@ -1,26 +1,25 @@
-import sys
 import logging
+
 from flask import Flask
 from flask_cors import CORS
 
 from .urls import urls
-from .settings import DEBUG, SECRET, CORS_ORIGINS, AZURE_APP_INSIGHTS_CONN_STRING
+from .logger import handler
+from .settings import SECRET, CORS_ORIGINS
 
-# Import models here for SQLAlchemy to detect them
+# Import models here for SQLAlchemy to detech them
 from .models import VERSIONED_DB_MODELS
-
-
-# -- Logging -----------------------------------------------------------------
-
-if DEBUG:
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 # -- Flask setup -------------------------------------------------------------
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET
-app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['PROPAGATE_EXCEPTIONS'] = False
+
+if handler is not None:
+    handler.setLevel(logging.DEBUG)
+    app.logger.addHandler(handler)
 
 cors = CORS(app, resources={r'*': {'origins': CORS_ORIGINS}})
 
