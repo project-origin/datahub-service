@@ -32,9 +32,9 @@ spec:
             - name: SERVICE_NAME
               value: DataHubService
             - name: WORKERS
-              value: {{ .Values.workers }}
+              value: "{{ .Values.workers }}"
             - name: WORKER_CONNECTIONS
-              value: {{ .Values.workerconnections }}
+              value: "{{ .Values.workerconnections }}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -102,7 +102,7 @@ spec:
             - name: SERVICE_NAME
               value: DataHubServiceWorker
             - name: CONCURRENCY
-              value: {{ .Values.concurrency }}
+              value: "{{ .Values.concurrency }}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -137,4 +137,4 @@ spec:
             - name: SERVICE_NAME
               value: DataHubServiceDisclosure
             - name: CONCURRENCY
-              value: {{ .Values.concurrency }}
+              value: "{{ .Values.concurrency }}"
