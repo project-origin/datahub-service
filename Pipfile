@@ -26,7 +26,10 @@ python-dateutil = "*"
 authlib = "*"
 bip32utils = "*"
 Origin-Ledger-SDK = "*"
+opencensus-ext-flask = "*"
 opencensus-ext-azure = "*"
+opencensus-ext-requests = "*"
+opencensus-ext-sqlalchemy = "*"
 
 [requires]
 python_version = "3.7"
