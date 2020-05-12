@@ -31,6 +31,10 @@ spec:
           env:
             - name: SERVICE_NAME
               value: DataHubService
+            - name: WORKERS
+              value: {{ .Values.workers }}
+            - name: WORKER_CONNECTIONS
+              value: {{ .Values.workerconnections }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -49,7 +53,7 @@ spec:
       containers:
         - name: datahub-beat-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
-          args: ["pipenv", "run", "beat"]
+          args: ["./entrypoint.beat.sh"]
           envFrom:
             - configMapRef:
                 name: namespace-config
@@ -82,7 +86,7 @@ spec:
       containers:
         - name: datahub-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
-          args: ["pipenv", "run", "worker"]
+          args: ["./entrypoint.worker.sh"]
           envFrom:
             - configMapRef:
                 name: namespace-config
@@ -97,6 +101,8 @@ spec:
           env:
             - name: SERVICE_NAME
               value: DataHubServiceWorker
+            - name: CONCURRENCY
+              value: {{ .Values.concurrency }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -115,7 +121,7 @@ spec:
       containers:
         - name: datahub-disclosure-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
-          args: ["pipenv", "run", "disclosure-worker"]
+          args: ["./entrypoint.disclosure-worker.sh"]
           envFrom:
             - configMapRef:
                 name: namespace-config
@@ -130,3 +136,5 @@ spec:
           env:
             - name: SERVICE_NAME
               value: DataHubServiceDisclosure
+            - name: CONCURRENCY
+              value: {{ .Values.concurrency }}
