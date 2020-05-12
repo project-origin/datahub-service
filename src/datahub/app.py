@@ -2,18 +2,11 @@ import logging
 from flask import Flask
 from flask_cors import CORS
 from opencensus.trace import config_integration
-from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.ext.flask.flask_middleware import FlaskMiddleware
-from opencensus.trace.samplers import ProbabilitySampler
 
 from .urls import urls
-from .logger import handler
-from .settings import (
-    SECRET,
-    CORS_ORIGINS,
-    AZURE_APP_INSIGHTS_CONN_STRING,
-    PROJECT_NAME,
-)
+from .logger import handler, exporter, sampler
+from .settings import SECRET, CORS_ORIGINS, PROJECT_NAME
 
 # Import models here for SQLAlchemy to detech them
 from .models import VERSIONED_DB_MODELS
@@ -28,19 +21,14 @@ config_integration.trace_integrations(['sqlalchemy'])
 app = Flask(PROJECT_NAME)
 app.config['SECRET_KEY'] = SECRET
 app.config['PROPAGATE_EXCEPTIONS'] = False
+cors = CORS(app, resources={r'*': {'origins': CORS_ORIGINS}})
 
-if handler is not None:
+if handler:
     handler.setLevel(logging.DEBUG)
     app.logger.addHandler(handler)
 
-if AZURE_APP_INSIGHTS_CONN_STRING:
-    middleware = FlaskMiddleware(
-        app,
-        exporter=AzureExporter(connection_string=AZURE_APP_INSIGHTS_CONN_STRING),
-        sampler=ProbabilitySampler(rate=1.0),
-    )
-
-cors = CORS(app, resources={r'*': {'origins': CORS_ORIGINS}})
+if exporter and sampler:
+    opencensus = FlaskMiddleware(app, sampler=sampler, exporter=exporter)
 
 
 # -- URLs/routes setup -------------------------------------------------------
