@@ -58,7 +58,7 @@ else:
     exception = logger.exception
 
 
-def wrap_task(pipeline, task, title=None):
+def wrap_task(pipeline, task, title):
     def wrap_task_decorator(function):
         """
         A decorator that wraps the passed in function and logs
@@ -74,12 +74,13 @@ def wrap_task(pipeline, task, title=None):
                 'task_args': str(args),
                 'task_kwargs': str(kwargs),
             })
-            if title:
-                formatted_title = title % kwargs
-                info(f'Task: {formatted_title}', extra=extra)
+
+            formatted_title = title % kwargs
+            info(f'Task: {formatted_title}', extra=extra)
 
             try:
-                return function(*args, **kwargs)
+                with tracer.span('Task: ' % title):
+                    return function(*args, **kwargs)
             except Retry:
                 raise
             except:

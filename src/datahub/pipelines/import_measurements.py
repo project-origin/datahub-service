@@ -293,6 +293,7 @@ def submit_to_ledger(task, subject, gsrn, begin_from, begin_to, session):
 @logger.wrap_task(
     pipeline='import_measurements',
     task='poll_batch_status',
+    title='Poll batch status',
 )
 def poll_batch_status(task, handle, subject):
     """
