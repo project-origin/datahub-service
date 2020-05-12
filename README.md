@@ -9,6 +9,7 @@ TODO Describe the project here
 
 Name | Description | Example
 :--- | :--- | :--- |
+`SERVICE_NAME` | Name of this service | `ExampleBackend`
 `DEBUG` | Whether or not to enable debugging mode (off by default) | `0` or `1`
 `SECRET` | Application secret for misc. operations | `foobar`
 `DATABASE_URI` | Database connection string for SQLAlchemy | `postgresql://scott:tiger@localhost/mydatabase`

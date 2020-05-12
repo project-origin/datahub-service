@@ -6,7 +6,7 @@ from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 
 from .urls import urls
 from .logger import handler, exporter, sampler
-from .settings import SECRET, CORS_ORIGINS, PROJECT_NAME
+from .settings import SECRET, CORS_ORIGINS, SERVICE_NAME
 
 # Import models here for SQLAlchemy to detech them
 from .models import VERSIONED_DB_MODELS
@@ -18,7 +18,7 @@ config_integration.trace_integrations(['sqlalchemy'])
 
 # -- Flask setup -------------------------------------------------------------
 
-app = Flask(PROJECT_NAME)
+app = Flask(SERVICE_NAME)
 app.config['SECRET_KEY'] = SECRET
 app.config['PROPAGATE_EXCEPTIONS'] = False
 cors = CORS(app, resources={r'*': {'origins': CORS_ORIGINS}})
