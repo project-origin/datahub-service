@@ -95,29 +95,27 @@ class WebhookService(object):
         :param datetime begin_from:
         :param datetime begin_to:
         """
-        with logger.tracer.span('Invoking webhook: OnGgoIssued'):
-            return self.publish(
-                event=Event.ON_GGOS_ISSUED,
-                subject=subject,
-                schema=md.class_schema(OnGgoIssuedRequest),
-                request=OnGgoIssuedRequest(
-                    sub=subject,
-                    gsrn=gsrn,
-                    begin_from=begin_from,
-                    begin_to=begin_to,
-                )
+        return self.publish(
+            event=Event.ON_GGOS_ISSUED,
+            subject=subject,
+            schema=md.class_schema(OnGgoIssuedRequest),
+            request=OnGgoIssuedRequest(
+                sub=subject,
+                gsrn=gsrn,
+                begin_from=begin_from,
+                begin_to=begin_to,
             )
+        )
 
     def on_meteringpoints_available(self, subject):
         """
         :param str subject:
         """
-        with logger.tracer.span('Invoking webhook: OnMeteringPointsAvailable'):
-            return self.publish(
-                event=Event.ON_METERINGPOINTS_AVAILABLE,
-                subject=subject,
-                schema=md.class_schema(OnMeteringointsAvailableRequest),
-                request=OnMeteringointsAvailableRequest(
-                    sub=subject,
-                )
+        return self.publish(
+            event=Event.ON_METERINGPOINTS_AVAILABLE,
+            subject=subject,
+            schema=md.class_schema(OnMeteringointsAvailableRequest),
+            request=OnMeteringointsAvailableRequest(
+                sub=subject,
             )
+        )

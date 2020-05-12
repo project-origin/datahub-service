@@ -60,38 +60,36 @@ class EloverblikService(object):
         """
         :rtype: str
         """
-        with logger.tracer.span('ElOverblik.GetToken'):
-            with logger.tracer.span('Get from redis cache'):
-                token = redis.get('eloverblik-token')
+        with logger.tracer.span('Get from redis cache'):
+            token = redis.get('eloverblik-token')
 
-            if token is None:
-                with logger.tracer.span('Fetching token from ElOverblik'):
-                    response = self.get(
-                        token=ELOVERBLIK_TOKEN,
-                        path='/api/Token',
-                        response_schema=md.class_schema(GetTokenResponse),
-                    )
-                    token = response.result
+        if token is None:
+            with logger.tracer.span('Fetching token from ElOverblik'):
+                response = self.get(
+                    token=ELOVERBLIK_TOKEN,
+                    path='/api/Token',
+                    response_schema=md.class_schema(GetTokenResponse),
+                )
+                token = response.result
 
-                with logger.tracer.span('Inserting token into redis cache'):
-                    redis.set('eloverblik-token', token, ex=TOKEN_EXPIRE)
-            else:
-                token = token.decode()
+            with logger.tracer.span('Inserting token into redis cache'):
+                redis.set('eloverblik-token', token, ex=TOKEN_EXPIRE)
+        else:
+            token = token.decode()
 
-            return token
+        return token
 
     def get_authorizations(self):
         """
         :rtype: list[Authorization]
         """
-        with logger.tracer.span('ElOverblik.GetAuthorizations'):
-            response = self.get(
-                token=self.get_token(),
-                path=f'/api/Authorization/Authorizations',
-                response_schema=md.class_schema(GetAuthorizationsResponse),
-            )
+        response = self.get(
+            token=self.get_token(),
+            path=f'/api/Authorization/Authorizations',
+            response_schema=md.class_schema(GetAuthorizationsResponse),
+        )
 
-            return response.result
+        return response.result
 
     def get_meteringpoints(self, scope, identifier):
         """
@@ -100,14 +98,13 @@ class EloverblikService(object):
         :param str identifier:
         :rtype: list[MeteringPoint]
         """
-        with logger.tracer.span('ElOverblik.GetMeteringPoints'):
-            response = self.get(
-                token=self.get_token(),
-                path=f'/api/Authorization/Authorization/MeteringPoints/{scope.value}/{identifier}',
-                response_schema=md.class_schema(GetMeteringPointsResponse),
-            )
+        response = self.get(
+            token=self.get_token(),
+            path=f'/api/Authorization/Authorization/MeteringPoints/{scope.value}/{identifier}',
+            response_schema=md.class_schema(GetMeteringPointsResponse),
+        )
 
-            return response.result
+        return response.result
 
     def get_time_series(self, gsrn, date_from, date_to):
         """
@@ -125,12 +122,11 @@ class EloverblikService(object):
         date_from_formatted = date_from.strftime('%Y-%m-%d')
         date_to_formatted = date_to.strftime('%Y-%m-%d')
 
-        with logger.tracer.span('ElOverblik.GetTimeSeries'):
-            response = self.post(
-                body=body,
-                token=self.get_token(),
-                path=f'/api/MeterData/GetTimeSeries/{date_from_formatted}/{date_to_formatted}/Hour',
-                response_schema=md.class_schema(GetTimeSeriesResponse),
-            )
+        response = self.post(
+            body=body,
+            token=self.get_token(),
+            path=f'/api/MeterData/GetTimeSeries/{date_from_formatted}/{date_to_formatted}/Hour',
+            response_schema=md.class_schema(GetTimeSeriesResponse),
+        )
 
-            return response.result
+        return response.result
