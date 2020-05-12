@@ -15,19 +15,18 @@ class EnergyTypeService(object):
         :rtype (str, str):
         :return: A tuple of (technologyCode, fuelCode)
         """
-        with logger.tracer.span('EnergyTypeService.GetEnergyType'):
-            response = requests.get(
-                url=f'{ENERGY_TYPE_SERVICE_URL}/get-energy-type',
-                params={'gsrn': gsrn},
-                verify=not DEBUG,
-            )
+        response = requests.get(
+            url=f'{ENERGY_TYPE_SERVICE_URL}/get-energy-type',
+            params={'gsrn': gsrn},
+            verify=not DEBUG,
+        )
 
-            if response.status_code != 200:
-                raise Exception('%d\n\n%s\n\n' % (response.status_code, response.content))
+        if response.status_code != 200:
+            raise Exception('%d\n\n%s\n\n' % (response.status_code, response.content))
 
-            response_json = response.json()
+        response_json = response.json()
 
-            return (
-                response_json['technologyCode'],
-                response_json['fuelCode'],
-            )
+        return (
+            response_json['technologyCode'],
+            response_json['fuelCode'],
+        )
