@@ -116,6 +116,7 @@ def import_measurements(subject, gsrn, session):
             # Poll for Batch status
             poll_batch_status.s(
                 subject=subject,
+                measurement_id=measurement.id,
             ),
 
             # Update Measurement.published status attribute
@@ -215,11 +216,12 @@ def submit_to_ledger(task, subject, measurement_id, session):
     pipeline='import_measurements',
     task='poll_batch_status',
 )
-def poll_batch_status(task, handle, subject):
+def poll_batch_status(task, handle, subject, measurement_id):
     """
     :param celery.Task task:
     :param str handle:
     :param str subject:
+    :param int measurement_id:
     """
     try:
         response = ledger.get_batch_status(handle)
@@ -248,6 +250,17 @@ def poll_batch_status(task, handle, subject):
             'pipeline': 'import_measurements',
             'task': 'submit_to_ledger',
         })
+    elif response.status == ols.BatchStatus.UNKNOWN:
+        logger.error('Batch submit UNKNOWN: Re-submitting', extra={
+            'subject': subject,
+            'handle': handle,
+            'pipeline': 'import_measurements',
+            'task': 'submit_to_ledger',
+        })
+
+        submit_to_ledger \
+            .si(subject=subject, measurement_id=measurement_id) \
+            .apply_async()
     else:
         raise task.retry(
             max_retries=MAX_POLLING_RETRIES,
