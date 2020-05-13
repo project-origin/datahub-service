@@ -6,7 +6,7 @@ from datahub.db import atomic, inject_session
 from datahub.auth import Token, require_oauth, inject_token
 from datahub.meteringpoints import MeteringPoint, MeteringPointQuery
 from datahub.pipelines import start_compile_disclosure_pipeline
-from datahub.common import SummaryGroup, LabelRange
+from datahub.common import SummaryGroup, LabelRange, SummaryResolution
 
 from .queries import DisclosureRetiredGgoQuery
 from .models import (
@@ -47,20 +47,31 @@ class GetDisclosure(Controller):
                 message=f'Disclosure with ID "{request.id}" not found',
             )
 
-        # Set the date outer boundaries to those of the disclosure
-        begin_range = request.date_range \
-            .with_boundaries(disclosure.begin, disclosure.end) \
-            .to_datetime_range()
+        # Data begin and end datetimes
+        if request.date_range:
+            begin_range = request.date_range \
+                .with_boundaries(disclosure.begin, disclosure.end) \
+                .to_datetime_range()
+        else:
+            begin_range = disclosure.date_range.to_datetime_range()
 
+        # Data resolution
+        if request.resolution:
+            resolution = request.resolution
+        else:
+            resolution = self.get_resolution(begin_range.delta)
+
+        # Data
         if disclosure.publicize_meteringpoints:
             data = self.get_data_series(
-                disclosure, begin_range, request.resolution, session)
+                disclosure, begin_range, resolution, session)
         else:
             data = self.get_anonymized_data_series(
-                disclosure, begin_range, request.resolution, session)
+                disclosure, begin_range, resolution, session)
 
+        # Data labels
         labels = list(LabelRange(
-            begin_range.begin, begin_range.end, request.resolution))
+            begin_range.begin, begin_range.end, resolution))
 
         return GetDisclosureResponse(
             success=True,
@@ -68,6 +79,20 @@ class GetDisclosure(Controller):
             labels=labels,
             data=data,
         )
+
+    def get_resolution(self, delta):
+        """
+        :param timedelta delta:
+        :rtype: SummaryResolution
+        """
+        if delta.days >= (365 * 3):
+            return SummaryResolution.YEAR
+        elif delta.days >= 60:
+            return SummaryResolution.MONTH
+        elif delta.days >= 3:
+            return SummaryResolution.DAY
+        else:
+            return SummaryResolution.HOUR
 
     def get_data_series(self, disclosure, begin_range, resolution, session):
         """
@@ -113,7 +138,7 @@ class GetDisclosure(Controller):
             .begins_within(begin_range)
 
         if gsrn:
-            measurements.has_gsrn(gsrn)
+            measurements = measurements.has_gsrn(gsrn)
 
         summary = measurements \
             .get_summary(resolution, []) \
@@ -133,7 +158,7 @@ class GetDisclosure(Controller):
             .begins_within(begin_range)
 
         if gsrn:
-            ggos.has_gsrn(gsrn)
+            ggos = ggos.has_gsrn(gsrn)
 
         summary = ggos \
             .get_summary(resolution, ['technologyCode', 'fuelCode']) \
@@ -202,6 +227,8 @@ class CreateDisclosure(Controller):
         """
         disclosure = Disclosure(
             public_id=str(uuid4()),
+            name=request.name,
+            description=request.description,
             state=DisclosureState.PENDING,
             sub=sub,
             begin=request.begin,

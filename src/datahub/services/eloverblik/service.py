@@ -2,6 +2,7 @@ import requests
 import marshmallow_dataclass as md
 from functools import partial
 
+from datahub import logger
 from datahub.cache import redis
 from datahub.settings import ELOVERBLIK_SERVICE_URL, ELOVERBLIK_TOKEN, DEBUG
 
@@ -59,17 +60,23 @@ class EloverblikService(object):
         """
         :rtype: str
         """
-        token = redis.get('eloverblik-token')
+        with logger.tracer.span('Get from redis cache'):
+            token = redis.get('eloverblik-token')
+
         if token is None:
-            response = self.get(
-                token=ELOVERBLIK_TOKEN,
-                path='/api/Token',
-                response_schema=md.class_schema(GetTokenResponse),
-            )
-            token = response.result
-            redis.set('eloverblik-token', token, ex=TOKEN_EXPIRE)
+            with logger.tracer.span('Fetching token from ElOverblik'):
+                response = self.get(
+                    token=ELOVERBLIK_TOKEN,
+                    path='/api/Token',
+                    response_schema=md.class_schema(GetTokenResponse),
+                )
+                token = response.result
+
+            with logger.tracer.span('Inserting token into redis cache'):
+                redis.set('eloverblik-token', token, ex=TOKEN_EXPIRE)
         else:
             token = token.decode()
+
         return token
 
     def get_authorizations(self):
@@ -123,20 +130,3 @@ class EloverblikService(object):
         )
 
         return response.result
-
-    # def get_meter_readings(self, token, date_from, date_to, meteringpoint_ids):
-    #     """
-    #     :param str token:
-    #     :param datetime date_from:
-    #     :param datetime date_to:
-    #     :param list[str] meteringpoint_ids:
-    #     :rtype: list[MeteringPoint]
-    #     """
-    #     response = self.post(
-    #         body={},
-    #         token=token,
-    #         path=f'/api/Authorization/Authorization/MeteringPoints/{scope.value}/{identifier}',
-    #         response_schema=md.class_schema(GetMeteringPointsResponse),
-    #     )
-    #
-    #     return response.result

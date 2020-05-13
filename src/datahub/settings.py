@@ -8,6 +8,7 @@ DEBUG = os.environ.get('DEBUG') in ('1', 't', 'true', 'yes')
 # -- Project -----------------------------------------------------------------
 
 PROJECT_NAME = 'DataHub Service'
+SERVICE_NAME = os.environ['SERVICE_NAME']
 SECRET = os.environ['SECRET']
 PROJECT_URL = os.environ['PROJECT_URL']
 CORS_ORIGINS = os.environ['CORS_ORIGINS']
@@ -79,10 +80,10 @@ REDIS_BACKEND_URL = '%s/%d' % (REDIS_URL, REDIS_BACKEND_DB)
 
 # -- Misc --------------------------------------------------------------------
 
-# TODO replace with ELOVERBLIK_REQUEST_ACCESS_FROM?
-# FIRST_MEASUREMENT_TIME = datetime(2018, 1, 1, 0, 0, tzinfo=timezone.utc)
-FIRST_MEASUREMENT_TIME = datetime(2019, 9, 15, 0, 0, tzinfo=timezone.utc)
-
 GGO_EXPIRE_TIME = timedelta(days=90)
 
-AZURE_APP_INSIGHTS_CONN_STRING = os.environ.get('AZURE_APP_INSIGHTS_CONN_STRING')
+AZURE_APP_INSIGHTS_CONN_STRING = os.environ.get(
+    'AZURE_APP_INSIGHTS_CONN_STRING')
+
+# Used when debugging for importing test data
+FIRST_MEASUREMENT_TIME = datetime(2019, 9, 15, 0, 0, tzinfo=timezone.utc)

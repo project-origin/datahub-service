@@ -27,11 +27,18 @@ class DateRange:
 
     @validates_schema
     def validate_begin_before_end(self, data, **kwargs):
-        if data['begin'] >= data['end']:
+        if data['begin'] > data['end']:
             raise ValidationError({
                 'begin': ['Must be before end'],
                 'end': ['Must be after begin'],
             })
+
+    @property
+    def delta(self):
+        """
+        :rtype: timedelta
+        """
+        return self.end - self.begin
 
     def with_boundaries(self, begin, end):
         """
@@ -58,7 +65,7 @@ class DateTimeRange:
 
     @validates_schema
     def validate_begin_before_end(self, data, **kwargs):
-        if data['begin'] >= data['end']:
+        if data['begin'] > data['end']:
             raise ValidationError({
                 'begin': ['Must be before end'],
                 'end': ['Must be after begin'],
@@ -74,6 +81,13 @@ class DateTimeRange:
             begin=datetime.fromordinal(date_range.begin.toordinal()),
             end=datetime.fromordinal(date_range.end.toordinal()) + timedelta(days=1),
         )
+
+    @property
+    def delta(self):
+        """
+        :rtype: timedelta
+        """
+        return self.end - self.begin
 
 
 class SummaryResolution(Enum):

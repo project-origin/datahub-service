@@ -27,6 +27,7 @@ class GetGgoList(Controller):
         """
         ggos = GgoQuery(session) \
             .belongs_to(token.subject) \
+            .is_published() \
             .has_gsrn(request.gsrn) \
             .begins_within(request.begin_range) \
             .all()

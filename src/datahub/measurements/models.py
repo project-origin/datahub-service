@@ -36,6 +36,10 @@ class Measurement(ModelBase):
     meteringpoint = relationship('MeteringPoint', foreign_keys=[gsrn], lazy='joined')
     ggo = relationship('Ggo', back_populates='measurement', uselist=False)
 
+    # Whether or not the measurement (plus is GGO if production)
+    # is published to the ledger
+    published = sa.Column(sa.Boolean(), nullable=False)
+
     def __str__(self):
         return 'Measurement<gsrn=%s, begin=%s, amount=%d>' % (
             self.gsrn, self.begin, self.amount)

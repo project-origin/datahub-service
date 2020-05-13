@@ -92,6 +92,15 @@ class MeasurementQuery(object):
             Measurement.begin <= begin_range.end,
         )))
 
+    def has_id(self, id):
+        """
+        :param int id:
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.id == id,
+        ))
+
     def has_gsrn(self, gsrn):
         """
         :param str gsrn:
@@ -130,6 +139,15 @@ class MeasurementQuery(object):
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.CONSUMPTION)
+
+    def is_published(self, value=True):
+        """
+        :param bool value:
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.published == value,
+        ))
 
     def needs_ggo_issued(self):
         """

@@ -1,5 +1,6 @@
 import requests
 
+from datahub import logger
 from datahub.settings import ENERGY_TYPE_SERVICE_URL, DEBUG
 
 

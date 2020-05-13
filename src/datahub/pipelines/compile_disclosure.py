@@ -2,10 +2,10 @@
 TODO write this
 """
 import origin_ledger_sdk as ols
-from celery import chord
+from celery import chord, group
 
 from datahub import logger
-from datahub.db import atomic
+from datahub.db import atomic, inject_session
 from datahub.disclosure import Disclosure, DisclosureState, DisclosureSettlement, DisclosureRetiredGgo
 from datahub.measurements import Measurement
 from datahub.settings import LEDGER_URL, DEBUG
@@ -29,6 +29,34 @@ def start_compile_disclosure_pipeline(disclosure):
     get_measurements \
         .s(subject=disclosure.sub, disclosure_id=disclosure.id) \
         .apply_async()
+
+
+@celery_app.task(
+    name='compile_disclosure.get_disclosures',
+    queue='disclosure',
+    autoretry_for=(Exception,),
+    retry_backoff=2,
+    max_retries=5,
+)
+@logger.wrap_task(
+    title='Getting all disclosures from database',
+    pipeline='compile_disclosure',
+    task='get_disclosures',
+)
+@inject_session
+def get_disclosures(session):
+    """
+    :param Session session:
+    """
+    tasks = []
+
+    for disclosure in session.query(Disclosure).all():
+        tasks.append(get_measurements.si(
+            subject=disclosure.sub,
+            disclosure_id=disclosure.id,
+        ))
+
+    group(*tasks).apply_async()
 
 
 @celery_app.task(
