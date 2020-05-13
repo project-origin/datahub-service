@@ -74,7 +74,8 @@ class Disclosure(ModelBase):
         """
         return MeasurementQuery(Session.object_session(self)) \
             .has_any_gsrn(self.get_gsrn()) \
-            .begins_within(self.date_range.to_datetime_range())
+            .begins_within(self.date_range.to_datetime_range()) \
+            .is_published()
 
 
 class DisclosureMeteringPoint(ModelBase):

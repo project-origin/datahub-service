@@ -14,8 +14,7 @@ from .models import Subscription, Event
 class OnGgoIssuedRequest:
     sub: str
     gsrn: str
-    begin_from: datetime = field(metadata=dict(data_key='beginFrom'))
-    begin_to: datetime = field(metadata=dict(data_key='beginTo'))
+    begin: datetime
 
 
 @dataclass
@@ -88,12 +87,11 @@ class WebhookService(object):
                     'response_body': response.content,
                 })
 
-    def on_ggo_issued(self, subject, gsrn, begin_from, begin_to):
+    def on_ggo_issued(self, subject, gsrn, begin):
         """
         :param str subject:
         :param str gsrn:
-        :param datetime begin_from:
-        :param datetime begin_to:
+        :param datetime begin:
         """
         return self.publish(
             event=Event.ON_GGOS_ISSUED,
@@ -102,8 +100,7 @@ class WebhookService(object):
             request=OnGgoIssuedRequest(
                 sub=subject,
                 gsrn=gsrn,
-                begin_from=begin_from,
-                begin_to=begin_to,
+                begin=begin,
             )
         )
 

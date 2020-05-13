@@ -29,7 +29,7 @@ def start_import_meteringpoints_pipeline(subject):
     queue='import-meteringpoints',
     autoretry_for=(Exception,),
     retry_backoff=2,
-    max_retries=5,
+    max_retries=16,
 )
 @logger.wrap_task(
     title='Importing MeteringPoints from ElOverblik',

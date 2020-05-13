@@ -77,3 +77,12 @@ class GgoQuery(object):
         return self.__class__(self.session, self.q.filter(
             MeteringPoint.gsrn == gsrn,
         ))
+
+    def is_published(self, value=True):
+        """
+        :param bool value:
+        :rtype: GgoQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.published == value,
+        ))

@@ -43,6 +43,7 @@ class GetMeasurement(Controller):
         """
         measurement = MeasurementQuery(session) \
             .belongs_to(token.subject) \
+            .is_published() \
             .is_type(self.type) \
             .has_gsrn(request.gsrn) \
             .begins_at(request.begin) \
@@ -73,6 +74,7 @@ class GetMeasurementList(Controller):
         """
         query = MeasurementQuery(session) \
             .belongs_to(token.subject) \
+            .is_published() \
             .apply_filters(request.filters)
 
         measurements = query \
@@ -107,7 +109,8 @@ class GetBeginRange(Controller):
         :rtype: GetBeginRangeResponse
         """
         query = MeasurementQuery(session) \
-            .belongs_to(token.subject)
+            .belongs_to(token.subject) \
+            .is_published()
 
         if request.filters:
             query = query.apply_filters(request.filters)
@@ -138,6 +141,7 @@ class GetMeasurementSummary(Controller):
         """
         summary = MeasurementQuery(session) \
             .belongs_to(token.subject) \
+            .is_published() \
             .apply_filters(request.filters) \
             .get_summary(request.resolution, request.grouping)
 
