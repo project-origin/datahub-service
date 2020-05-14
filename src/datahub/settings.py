@@ -53,6 +53,11 @@ ELOVERBLIK_REQUEST_ACCESS_TO = date.fromisoformat(
     os.environ['ELOVERBLIK_REQUEST_ACCESS_TO'])
 
 
+# -- webhook -----------------------------------------------------------------
+
+HMAC_HEADER = 'x-hub-signature'
+
+
 # -- Auth/tokens -------------------------------------------------------------
 
 TOKEN_HEADER = 'Authorization'
