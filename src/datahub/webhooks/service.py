@@ -1,10 +1,13 @@
 import requests
+import hmac
+from hashlib import sha256
+from base64 import b64encode
 import marshmallow_dataclass as md
 from datetime import datetime
 from dataclasses import dataclass, field
 
 from datahub import logger
-from datahub.settings import DEBUG
+from datahub.settings import DEBUG, HMAC_HEADER
 from datahub.db import atomic, inject_session
 
 from .models import Subscription, Event
@@ -58,16 +61,22 @@ class WebhookService(object):
 
         for subscription in subscriptions:
             body = schema().dump(request)
+            hmac = 'sha256=' + b64encode(hmac.new(subscription.secret.encode(), body, sha256).digest())
+
+            headers = {
+                HMAC_HEADER: hmac
+            }
 
             logger.info(f'Invoking webhook: {event.value}', extra={
                 'subject': subject,
                 'event': event.value,
                 'url': subscription.url,
                 'request': str(body),
+                'hmac': hmac,
             })
 
             try:
-                response = requests.post(subscription.url, json=body, verify=not DEBUG)
+                response = requests.post(subscription.url, json=body, headers=headers, verify=not DEBUG)
             except:
                 logger.exception(f'Failed to invoke webhook: {event.value}', extra={
                     'subject': subject,

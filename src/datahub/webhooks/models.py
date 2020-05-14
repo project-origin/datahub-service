@@ -20,6 +20,7 @@ class Subscription(ModelBase):
     event = sa.Column(sa.Enum(Event), index=True, nullable=False)
     subject = sa.Column(sa.String(), index=True, nullable=False)
     url = sa.Column(sa.String(), nullable=False)
+    secret = sa.Column(sa.String(), nullable=True)
 
 
 # -- Subscribe request and response ------------------------------------------
@@ -28,3 +29,4 @@ class Subscription(ModelBase):
 @dataclass
 class SubscribeRequest:
     url: str
+    secret: str
