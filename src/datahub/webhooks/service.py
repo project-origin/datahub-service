@@ -1,3 +1,5 @@
+import json
+
 import requests
 import hmac
 from hashlib import sha256
@@ -28,17 +30,19 @@ class OnMeteringointsAvailableRequest:
 class WebhookService(object):
 
     @atomic
-    def subscribe(self, event, subject, url, session):
+    def subscribe(self, event, subject, url, secret, session):
         """
         :param Event event:
         :param str subject:
         :param str url:
+        :param str secret:
         :param Session session:
         """
         session.add(Subscription(
             event=event,
             subject=subject,
             url=url,
+            secret=secret,
         ))
 
     @inject_session
@@ -61,10 +65,15 @@ class WebhookService(object):
 
         for subscription in subscriptions:
             body = schema().dump(request)
-            hmac = 'sha256=' + b64encode(hmac.new(subscription.secret.encode(), body, sha256).digest())
+
+            hmac_header = 'sha256=' + b64encode(hmac.new(
+                subscription.secret.encode(),
+                json.dumps(body).encode(),
+                sha256
+            ).digest()).decode()
 
             headers = {
-                HMAC_HEADER: hmac
+                HMAC_HEADER: hmac_header
             }
 
             logger.info(f'Invoking webhook: {event.value}', extra={
@@ -72,11 +81,15 @@ class WebhookService(object):
                 'event': event.value,
                 'url': subscription.url,
                 'request': str(body),
-                'hmac': hmac,
             })
 
             try:
-                response = requests.post(subscription.url, json=body, headers=headers, verify=not DEBUG)
+                response = requests.post(
+                    url=subscription.url,
+                    json=body,
+                    headers=headers,
+                    verify=not DEBUG,
+                )
             except:
                 logger.exception(f'Failed to invoke webhook: {event.value}', extra={
                     'subject': subject,
@@ -93,7 +106,7 @@ class WebhookService(object):
                     'url': subscription.url,
                     'request': str(body),
                     'response_status_code': response.status_code,
-                    'response_body': response.content,
+                    'response_body': response.content.decode(),
                 })
 
     def on_ggo_issued(self, subject, gsrn, begin):
