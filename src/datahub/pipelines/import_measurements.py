@@ -143,7 +143,7 @@ def import_measurements(subject, gsrn, session):
     queue='import-measurements',
     autoretry_for=(ols.LedgerException,),
     retry_backoff=2,
-    max_retries=5,
+    max_retries=16,
 )
 @logger.wrap_task(
     title='Submitting Batch to ledger for Measurement: %(measurement_id)d',
@@ -209,7 +209,7 @@ def submit_to_ledger(task, subject, measurement_id, session):
     queue='import-measurements',
     autoretry_for=(ols.LedgerException,),
     retry_backoff=2,
-    max_retries=5,
+    max_retries=16,
 )
 @logger.wrap_task(
     title='Poll batch status',

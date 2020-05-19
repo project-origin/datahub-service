@@ -1,10 +1,15 @@
+import json
+
 import requests
+import hmac
+from hashlib import sha256
+from base64 import b64encode
 import marshmallow_dataclass as md
 from datetime import datetime
 from dataclasses import dataclass, field
 
 from datahub import logger
-from datahub.settings import DEBUG
+from datahub.settings import DEBUG, HMAC_HEADER
 from datahub.db import atomic, inject_session
 
 from .models import Subscription, Event
@@ -25,17 +30,19 @@ class OnMeteringointsAvailableRequest:
 class WebhookService(object):
 
     @atomic
-    def subscribe(self, event, subject, url, session):
+    def subscribe(self, event, subject, url, secret, session):
         """
         :param Event event:
         :param str subject:
         :param str url:
+        :param str secret:
         :param Session session:
         """
         session.add(Subscription(
             event=event,
             subject=subject,
             url=url,
+            secret=secret,
         ))
 
     @inject_session
@@ -59,6 +66,16 @@ class WebhookService(object):
         for subscription in subscriptions:
             body = schema().dump(request)
 
+            hmac_header = 'sha256=' + b64encode(hmac.new(
+                subscription.secret.encode(),
+                json.dumps(body).encode(),
+                sha256
+            ).digest()).decode()
+
+            headers = {
+                HMAC_HEADER: hmac_header
+            }
+
             logger.info(f'Invoking webhook: {event.value}', extra={
                 'subject': subject,
                 'event': event.value,
@@ -67,7 +84,12 @@ class WebhookService(object):
             })
 
             try:
-                response = requests.post(subscription.url, json=body, verify=not DEBUG)
+                response = requests.post(
+                    url=subscription.url,
+                    json=body,
+                    headers=headers,
+                    verify=not DEBUG,
+                )
             except:
                 logger.exception(f'Failed to invoke webhook: {event.value}', extra={
                     'subject': subject,
@@ -84,7 +106,7 @@ class WebhookService(object):
                     'url': subscription.url,
                     'request': str(body),
                     'response_status_code': response.status_code,
-                    'response_body': response.content,
+                    'response_body': response.content.decode(),
                 })
 
     def on_ggo_issued(self, subject, gsrn, begin):

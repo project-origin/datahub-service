@@ -1,5 +1,6 @@
 from .ggo import controllers as ggo
 from .auth import controllers as auth
+from .technology import controllers as technology
 from .measurements import controllers as measurements
 from .meteringpoints import controllers as meteringpoints
 from .disclosure import controllers as disclosure
@@ -17,15 +18,20 @@ urls = (
     ('/onboarding/callback', auth.OnboardingCallback()),
 
 
-    # -- GGOs ----------------------------------------------------------------
+    # -- Technologies --------------------------------------------------------
 
-    ('/ggo', ggo.GetGgoList()),
+    ('/technologies', technology.GetTechnologies()),
 
 
     # -- MeteringPoints ------------------------------------------------------
 
     ('/meteringpoints', meteringpoints.GetMeteringPoints()),
     ('/meteringpoints/set-key', meteringpoints.SetKey()),
+
+
+    # -- GGOs ----------------------------------------------------------------
+
+    ('/ggo', ggo.GetGgoList()),
 
 
     # -- Measurements --------------------------------------------------------
