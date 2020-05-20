@@ -4,8 +4,7 @@ from sqlalchemy.orm import relationship
 from typing import List
 from datetime import date
 from dataclasses import dataclass, field
-from marshmallow import validate, fields
-from marshmallow_dataclass import NewType
+from marshmallow import validate
 
 from datahub.db import ModelBase, Session
 from datahub.measurements import MeasurementQuery
@@ -40,6 +39,7 @@ class Disclosure(ModelBase):
     end = sa.Column(sa.Date(), nullable=False)
     name = sa.Column(sa.String(), nullable=False)
     description = sa.Column(sa.String())
+    max_resolution = sa.Column(sa.Enum(SummaryResolution), nullable=False)
 
     publicize_meteringpoints = sa.Column(sa.Boolean(), nullable=False)
     publicize_gsrn = sa.Column(sa.Boolean(), nullable=False)
@@ -171,7 +171,7 @@ class DisclosureDataSeries:
 @dataclass
 class GetDisclosureRequest:
     id: str
-    resolution: SummaryResolution = field(default=None, metadata=dict(by_value=True))
+    resolution: SummaryResolution = field(default=None)
     date_range: DateRange = field(default=None, metadata=dict(data_key='dateRange'))
 
 

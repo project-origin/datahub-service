@@ -195,7 +195,7 @@ class GetBeginRangeResponse:
 
 @dataclass
 class GetMeasurementSummaryRequest:
-    resolution: SummaryResolution = field(metadata=dict(by_value=True))
+    resolution: SummaryResolution
     filters: MeasurementFilters
     fill: bool
 

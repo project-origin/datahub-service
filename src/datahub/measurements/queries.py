@@ -205,25 +205,25 @@ class MeasurementSummary(object):
     )
 
     RESOLUTIONS_POSTGRES = {
-        SummaryResolution.HOUR: 'YYYY-MM-DD HH24:00',
-        SummaryResolution.DAY: 'YYYY-MM-DD',
-        SummaryResolution.MONTH: 'YYYY-MM',
-        SummaryResolution.YEAR: 'YYYY',
+        SummaryResolution.hour: 'YYYY-MM-DD HH24:00',
+        SummaryResolution.day: 'YYYY-MM-DD',
+        SummaryResolution.month: 'YYYY-MM',
+        SummaryResolution.year: 'YYYY',
     }
 
     RESOLUTIONS_PYTHON = {
-        SummaryResolution.HOUR: '%Y-%m-%d %H:00',
-        SummaryResolution.DAY: '%Y-%m-%d',
-        SummaryResolution.MONTH: '%Y-%m',
-        SummaryResolution.YEAR: '%Y',
+        SummaryResolution.hour: '%Y-%m-%d %H:00',
+        SummaryResolution.day: '%Y-%m-%d',
+        SummaryResolution.month: '%Y-%m',
+        SummaryResolution.year: '%Y',
     }
 
     LABEL_STEP = {
-        SummaryResolution.HOUR: relativedelta(hours=1),
-        SummaryResolution.DAY: relativedelta(days=1),
-        SummaryResolution.MONTH: relativedelta(months=1),
-        SummaryResolution.YEAR: relativedelta(years=1),
-        SummaryResolution.ALL: None,
+        SummaryResolution.hour: relativedelta(hours=1),
+        SummaryResolution.day: relativedelta(days=1),
+        SummaryResolution.month: relativedelta(months=1),
+        SummaryResolution.year: relativedelta(years=1),
+        SummaryResolution.all: None,
     }
 
     ALL_TIME_LABEL = 'All-time'
@@ -254,7 +254,7 @@ class MeasurementSummary(object):
         """
         :rtype list[str]:
         """
-        if self.resolution == SummaryResolution.ALL:
+        if self.resolution == SummaryResolution.all:
             return [self.ALL_TIME_LABEL]
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
@@ -295,7 +295,7 @@ class MeasurementSummary(object):
 
         # -- Resolution ------------------------------------------------------
 
-        if self.resolution == SummaryResolution.ALL:
+        if self.resolution == SummaryResolution.all:
             select.append(bindparam('label', self.ALL_TIME_LABEL))
         else:
             select.append(func.to_char(q.c.begin, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))

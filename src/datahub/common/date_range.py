@@ -7,18 +7,18 @@ from .models import SummaryResolution
 class LabelRange(object):
 
     RESOLUTIONS = {
-        SummaryResolution.HOUR: '%Y-%m-%d %H:00',
-        SummaryResolution.DAY: '%Y-%m-%d',
-        SummaryResolution.MONTH: '%Y-%m',
-        SummaryResolution.YEAR: '%Y',
+        SummaryResolution.hour: '%Y-%m-%d %H:00',
+        SummaryResolution.day: '%Y-%m-%d',
+        SummaryResolution.month: '%Y-%m',
+        SummaryResolution.year: '%Y',
     }
 
     LABEL_STEP = {
-        SummaryResolution.HOUR: relativedelta(hours=1),
-        SummaryResolution.DAY: relativedelta(days=1),
-        SummaryResolution.MONTH: relativedelta(months=1),
-        SummaryResolution.YEAR: relativedelta(years=1),
-        SummaryResolution.ALL: None,
+        SummaryResolution.hour: relativedelta(hours=1),
+        SummaryResolution.day: relativedelta(days=1),
+        SummaryResolution.month: relativedelta(months=1),
+        SummaryResolution.year: relativedelta(years=1),
+        SummaryResolution.all: None,
     }
 
     def __init__(self, begin, end, resolution):
