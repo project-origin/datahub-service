@@ -81,8 +81,8 @@ class GetDisclosure(Controller):
             state=disclosure.state,
             labels=labels,
             data=data,
-            begin=begin_range.begin,
-            end=begin_range.end,
+            begin=disclosure.begin,
+            end=disclosure.end,
         )
 
     def get_resolution(self, request, disclosure, begin_range):
