@@ -6,7 +6,12 @@ from datahub.db import atomic, inject_session
 from datahub.auth import Token, require_oauth, inject_token
 from datahub.meteringpoints import MeteringPoint, MeteringPointQuery
 from datahub.pipelines import start_compile_disclosure_pipeline
-from datahub.common import SummaryGroup, LabelRange, SummaryResolution, DateTimeRange
+from datahub.common import (
+    SummaryGroup,
+    LabelRange,
+    SummaryResolution,
+    DateTimeRange,
+)
 
 from .queries import DisclosureRetiredGgoQuery
 from .models import (
@@ -72,9 +77,12 @@ class GetDisclosure(Controller):
 
         return GetDisclosureResponse(
             success=True,
+            description=disclosure.description,
             state=disclosure.state,
             labels=labels,
             data=data,
+            begin=begin_range.begin,
+            end=begin_range.end,
         )
 
     def get_resolution(self, request, disclosure, begin_range):
@@ -164,7 +172,7 @@ class GetDisclosure(Controller):
             ggos = ggos.has_gsrn(gsrn)
 
         summary = ggos \
-            .get_summary(resolution, ['technologyCode', 'fuelCode']) \
+            .get_summary(resolution, ['technology']) \
             .fill(begin_range)
 
         return summary.groups
@@ -232,7 +240,7 @@ class CreateDisclosure(Controller):
             public_id=str(uuid4()),
             name=request.name,
             description=request.description,
-            max_resolution=SummaryResolution.day,
+            max_resolution=request.max_resolution,
             state=DisclosureState.PENDING,
             sub=sub,
             begin=request.begin,

@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from functools import lru_cache
 from itertools import groupby
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import func
 
 from datahub.measurements import Measurement
 from datahub.common import (
@@ -12,6 +13,8 @@ from datahub.common import (
 )
 
 from .models import DisclosureRetiredGgo, DisclosureSettlement, Disclosure
+from ..settings import UNKNOWN_TECHNOLOGY_LABEL
+from ..technology import Technology
 
 
 class DisclosureRetiredGgoQuery(object):
@@ -89,6 +92,7 @@ class DisclosureRetiredGgoSummary(object):
     GROUPINGS = (
         'begin',
         'sector',
+        'technology',
         'technologyCode',
         'fuelCode',
     )
@@ -182,6 +186,12 @@ class DisclosureRetiredGgoSummary(object):
 
         q = self.query.subquery()
 
+        q = self.session.query(q, func.coalesce(Technology.technology, UNKNOWN_TECHNOLOGY_LABEL).label('technology')) \
+            .outerjoin(Technology, sa.and_(
+                Technology.technology_code == q.c.technology_code,
+                Technology.fuel_code == q.c.fuel_code,
+            )).subquery()
+
         # -- Resolution ------------------------------------------------------
 
         if self.resolution == SummaryResolution.all:
@@ -201,6 +211,10 @@ class DisclosureRetiredGgoSummary(object):
                 groups.append(q.c.sector)
                 select.append(q.c.sector)
                 orders.append(q.c.sector)
+            elif group == 'technology':
+                groups.append(q.c.technology)
+                select.append(q.c.technology)
+                orders.append(q.c.technology)
             elif group == 'technologyCode':
                 groups.append(q.c.technology_code)
                 select.append(q.c.technology_code)

@@ -178,6 +178,9 @@ class GetDisclosureRequest:
 @dataclass
 class GetDisclosureResponse:
     success: bool
+    description: str = field(default=None)
+    begin: date = field(default=None)
+    end: date = field(default=None)
     message: str = field(default=None)
     state: DisclosureState = field(default=None, metadata=dict(by_value=True))
     labels: List[str] = field(default_factory=list)
@@ -202,6 +205,7 @@ class CreateDisclosureRequest:
     description: str
     begin: date
     end: date
+    max_resolution: SummaryResolution = field(metadata=dict(data_key='maxResolution'))
     publicize_meteringpoints: bool = field(metadata=dict(data_key='publicizeMeteringpoints'))
     publicize_gsrn: bool = field(metadata=dict(data_key='publicizeGsrn'))
     publicize_physical_address: bool = field(metadata=dict(data_key='publicizePhysicalAddress'))
