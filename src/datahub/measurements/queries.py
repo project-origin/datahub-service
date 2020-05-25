@@ -165,8 +165,15 @@ class MeasurementQuery(object):
         """
         return self.__class__(self.session, self.q.filter(
             Measurement.published.is_(False),
-            Measurement.submitted <= text(
-                "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS)
+            sa.or_(
+                sa.and_(
+                    Measurement.submitted.is_(None),
+                    Measurement.created <= text(
+                        "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS),
+                ),
+                Measurement.submitted <= text(
+                    "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS),
+            ),
         ))
 
     def get_distinct_begins(self):
