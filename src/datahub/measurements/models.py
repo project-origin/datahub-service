@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import origin_ledger_sdk as ols
+from sqlalchemy import func
 from sqlalchemy.orm import relationship
 from bip32utils import BIP32Key
 from typing import List
@@ -26,7 +27,12 @@ class Measurement(ModelBase):
     )
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
+
+    # Time when measurement was imported from ElOverblik / inserted to DB
     created = sa.Column(sa.DateTime(timezone=True), server_default=sa.func.now())
+
+    # Time when measurement was LAST submitted to ledger (if at all)
+    submitted = sa.Column(sa.DateTime(timezone=True), nullable=True)
 
     gsrn = sa.Column(sa.String(), sa.ForeignKey('meteringpoint.gsrn'), index=True, nullable=False)
     begin: datetime = sa.Column(sa.DateTime(timezone=True), index=True, nullable=False)
@@ -43,6 +49,13 @@ class Measurement(ModelBase):
     def __str__(self):
         return 'Measurement<gsrn=%s, begin=%s, amount=%d>' % (
             self.gsrn, self.begin, self.amount)
+
+    @property
+    def sub(self):
+        """
+        :rtype: str
+        """
+        return self.meteringpoint.sub
 
     @property
     def sector(self):
@@ -115,6 +128,12 @@ class Measurement(ModelBase):
             type=typ,
             amount=self.amount,
         )
+
+    def set_submitted_to_ledger(self):
+        """
+        Update time for when the measurement was submitted to ledger
+        """
+        self.submitted = func.now()
 
 
 # -- Common ------------------------------------------------------------------
@@ -195,7 +214,7 @@ class GetBeginRangeResponse:
 
 @dataclass
 class GetMeasurementSummaryRequest:
-    resolution: SummaryResolution = field(metadata=dict(by_value=True))
+    resolution: SummaryResolution
     filters: MeasurementFilters
     fill: bool
 
@@ -203,8 +222,6 @@ class GetMeasurementSummaryRequest:
         validate.ContainsOnly(('type', 'gsrn', 'sector')),
         unique_values,
     )))
-
-    type: MeasurementType = field(default=None, metadata=dict(by_value=True))
 
 
 @dataclass

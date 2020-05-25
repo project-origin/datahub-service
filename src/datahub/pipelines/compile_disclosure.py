@@ -31,6 +31,15 @@ def start_compile_disclosure_pipeline(disclosure):
         .apply_async()
 
 
+def start_compile_all_disclosures_pipeline():
+    """
+    TODO
+    """
+    get_disclosures \
+        .s() \
+        .apply_async()
+
+
 @celery_app.task(
     name='compile_disclosure.get_disclosures',
     queue='disclosure',

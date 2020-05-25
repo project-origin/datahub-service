@@ -6,7 +6,12 @@ from datahub.db import atomic, inject_session
 from datahub.auth import Token, require_oauth, inject_token
 from datahub.meteringpoints import MeteringPoint, MeteringPointQuery
 from datahub.pipelines import start_compile_disclosure_pipeline
-from datahub.common import SummaryGroup, LabelRange, SummaryResolution
+from datahub.common import (
+    SummaryGroup,
+    LabelRange,
+    SummaryResolution,
+    DateTimeRange,
+)
 
 from .queries import DisclosureRetiredGgoQuery
 from .models import (
@@ -56,10 +61,7 @@ class GetDisclosure(Controller):
             begin_range = disclosure.date_range.to_datetime_range()
 
         # Data resolution
-        if request.resolution:
-            resolution = request.resolution
-        else:
-            resolution = self.get_resolution(begin_range.delta)
+        resolution = self.get_resolution(request, disclosure, begin_range)
 
         # Data
         if disclosure.publicize_meteringpoints:
@@ -75,24 +77,33 @@ class GetDisclosure(Controller):
 
         return GetDisclosureResponse(
             success=True,
+            description=disclosure.description,
             state=disclosure.state,
             labels=labels,
             data=data,
+            begin=disclosure.begin,
+            end=disclosure.end,
         )
 
-    def get_resolution(self, delta):
+    def get_resolution(self, request, disclosure, begin_range):
         """
-        :param timedelta delta:
+        :param GetDisclosureRequest request:
+        :param Disclosure disclosure:
+        :param DateTimeRange begin_range:
         :rtype: SummaryResolution
         """
-        if delta.days >= (365 * 3):
-            return SummaryResolution.YEAR
-        elif delta.days >= 60:
-            return SummaryResolution.MONTH
-        elif delta.days >= 3:
-            return SummaryResolution.DAY
+        if request.resolution:
+            resolution = request.resolution
+        elif begin_range.delta.days >= (365 * 3):
+            resolution = SummaryResolution.year
+        elif begin_range.delta.days >= 60:
+            resolution = SummaryResolution.month
+        elif begin_range.delta.days >= 3:
+            resolution = SummaryResolution.day
         else:
-            return SummaryResolution.HOUR
+            resolution = SummaryResolution.hour
+
+        return min(resolution, disclosure.max_resolution)
 
     def get_data_series(self, disclosure, begin_range, resolution, session):
         """
@@ -161,7 +172,7 @@ class GetDisclosure(Controller):
             ggos = ggos.has_gsrn(gsrn)
 
         summary = ggos \
-            .get_summary(resolution, ['technologyCode', 'fuelCode']) \
+            .get_summary(resolution, ['technology']) \
             .fill(begin_range)
 
         return summary.groups
@@ -229,6 +240,7 @@ class CreateDisclosure(Controller):
             public_id=str(uuid4()),
             name=request.name,
             description=request.description,
+            max_resolution=request.max_resolution,
             state=DisclosureState.PENDING,
             sub=sub,
             begin=request.begin,

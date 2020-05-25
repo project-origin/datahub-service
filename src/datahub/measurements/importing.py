@@ -3,10 +3,10 @@ from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 from datahub import logger
-from datahub.settings import DEBUG, FIRST_MEASUREMENT_TIME, GGO_EXPIRE_TIME
-from datahub.db import atomic, inject_session
+from datahub.db import atomic
 from datahub.services import eloverblik as e
 from datahub.meteringpoints import MeteringPoint, MeasurementType
+from datahub.settings import DEBUG, FIRST_MEASUREMENT_TIME, GGO_EXPIRE_TIME
 
 from .models import Measurement
 from .queries import MeasurementQuery

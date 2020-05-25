@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy import func, bindparam
+from sqlalchemy import func, bindparam, text
 from datetime import datetime
 from itertools import groupby
 from functools import lru_cache
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from datahub.ggo import Ggo
 from datahub.common import DateTimeRange, LabelRange
 from datahub.meteringpoints import MeteringPoint, MeasurementType
+from datahub.settings import BATCH_RESUBMIT_AFTER_HOURS
 
 from .models import (
     Measurement,
@@ -158,6 +159,23 @@ class MeasurementQuery(object):
         return self.__class__(self.session, q) \
             .is_production()
 
+    def needs_resubmit_to_ledger(self):
+        """
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.published.is_(False),
+            sa.or_(
+                sa.and_(
+                    Measurement.submitted.is_(None),
+                    Measurement.created <= text(
+                        "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS),
+                ),
+                Measurement.submitted <= text(
+                    "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS),
+            ),
+        ))
+
     def get_distinct_begins(self):
         """
         Returns an iterable of all distinct Ggo.begin
@@ -205,25 +223,25 @@ class MeasurementSummary(object):
     )
 
     RESOLUTIONS_POSTGRES = {
-        SummaryResolution.HOUR: 'YYYY-MM-DD HH24:00',
-        SummaryResolution.DAY: 'YYYY-MM-DD',
-        SummaryResolution.MONTH: 'YYYY-MM',
-        SummaryResolution.YEAR: 'YYYY',
+        SummaryResolution.hour: 'YYYY-MM-DD HH24:00',
+        SummaryResolution.day: 'YYYY-MM-DD',
+        SummaryResolution.month: 'YYYY-MM',
+        SummaryResolution.year: 'YYYY',
     }
 
     RESOLUTIONS_PYTHON = {
-        SummaryResolution.HOUR: '%Y-%m-%d %H:00',
-        SummaryResolution.DAY: '%Y-%m-%d',
-        SummaryResolution.MONTH: '%Y-%m',
-        SummaryResolution.YEAR: '%Y',
+        SummaryResolution.hour: '%Y-%m-%d %H:00',
+        SummaryResolution.day: '%Y-%m-%d',
+        SummaryResolution.month: '%Y-%m',
+        SummaryResolution.year: '%Y',
     }
 
     LABEL_STEP = {
-        SummaryResolution.HOUR: relativedelta(hours=1),
-        SummaryResolution.DAY: relativedelta(days=1),
-        SummaryResolution.MONTH: relativedelta(months=1),
-        SummaryResolution.YEAR: relativedelta(years=1),
-        SummaryResolution.ALL: None,
+        SummaryResolution.hour: relativedelta(hours=1),
+        SummaryResolution.day: relativedelta(days=1),
+        SummaryResolution.month: relativedelta(months=1),
+        SummaryResolution.year: relativedelta(years=1),
+        SummaryResolution.all: None,
     }
 
     ALL_TIME_LABEL = 'All-time'
@@ -254,7 +272,7 @@ class MeasurementSummary(object):
         """
         :rtype list[str]:
         """
-        if self.resolution == SummaryResolution.ALL:
+        if self.resolution == SummaryResolution.all:
             return [self.ALL_TIME_LABEL]
         if self.fill_range is None:
             return sorted(set(label for label, *g, amount in self.raw_results))
@@ -295,7 +313,7 @@ class MeasurementSummary(object):
 
         # -- Resolution ------------------------------------------------------
 
-        if self.resolution == SummaryResolution.ALL:
+        if self.resolution == SummaryResolution.all:
             select.append(bindparam('label', self.ALL_TIME_LABEL))
         else:
             select.append(func.to_char(q.c.begin, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))

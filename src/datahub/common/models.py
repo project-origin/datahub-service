@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 from datetime import date, datetime, timedelta
 from dataclasses import dataclass, field
 from typing import List
@@ -90,15 +90,15 @@ class DateTimeRange:
         return self.end - self.begin
 
 
-class SummaryResolution(Enum):
+class SummaryResolution(IntEnum):
     """
     TODO
     """
-    ALL = 'all'
-    YEAR = 'year'
-    MONTH = 'month'
-    DAY = 'day'
-    HOUR = 'hour'
+    all = 0
+    year = 1
+    month = 2
+    day = 3
+    hour = 4
 
 
 @dataclass
