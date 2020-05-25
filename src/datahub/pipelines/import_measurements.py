@@ -15,10 +15,8 @@ from datahub.measurements import MeasurementQuery, MeasurementImportController
 
 
 # Settings
-POLLING_DELAY = 5
-MAX_POLLING_RETRIES = int(3600 / POLLING_DELAY)
-SUBMIT_RETRY_COUNT = 9999
-SUBMIT_RETRY_DELAY = 30
+RETRY_MAX_DELAY = 60
+MAX_RETRIES = (24 * 60 * 60) / RETRY_MAX_DELAY
 
 
 # Services
@@ -138,12 +136,12 @@ def import_measurements(subject, gsrn, session):
 
 
 @celery_app.task(
-    bind=True,
     name='import_measurements.submit_to_ledger',
     queue='import-measurements',
-    autoretry_for=(ols.LedgerException,),
+    autoretry_for=(Exception,),
     retry_backoff=2,
-    max_retries=16,
+    retry_backoff_max=RETRY_MAX_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Submitting Batch to ledger for Measurement: %(measurement_id)d',
@@ -151,9 +149,8 @@ def import_measurements(subject, gsrn, session):
     task='submit_to_ledger',
 )
 @inject_session
-def submit_to_ledger(task, subject, measurement_id, session):
+def submit_to_ledger(subject, measurement_id, session):
     """
-    :param celery.Task task:
     :param str subject:
     :param int measurement_id:
     :param Session session:
@@ -171,15 +168,12 @@ def submit_to_ledger(task, subject, measurement_id, session):
 
     # Submit batch
     try:
-        handle = ledger.execute_batch(batch)
+        with logger.tracer.span('ExecuteBatch'):
+            handle = ledger.execute_batch(batch)
     except ols.LedgerException as e:
-        if e.code == 31:
-            # Ledger Queue is full
-            raise task.retry(
-                max_retries=SUBMIT_RETRY_COUNT,
-                countdown=SUBMIT_RETRY_DELAY,
-            )
-        else:
+        # (e.code == 31) means Ledger Queue is full
+        # In this case, don't log the error, just try again later
+        if e.code != 31:
             logger.exception(f'Ledger raise an exception for GSRN: {measurement.meteringpoint.gsrn}', extra={
                 'gsrn': measurement.meteringpoint.gsrn,
                 'subject': subject,
@@ -189,7 +183,8 @@ def submit_to_ledger(task, subject, measurement_id, session):
                 'pipeline': 'import_measurements',
                 'task': 'submit_to_ledger',
             })
-            raise
+
+        raise
 
     logger.info(f'Batch submitted to ledger for GSRN: {measurement.meteringpoint.gsrn}', extra={
         'gsrn': measurement.meteringpoint.gsrn,
@@ -204,37 +199,26 @@ def submit_to_ledger(task, subject, measurement_id, session):
 
 
 @celery_app.task(
-    bind=True,
     name='import_measurements.poll_batch_status',
     queue='import-measurements',
-    autoretry_for=(ols.LedgerException,),
+    autoretry_for=(Exception,),
     retry_backoff=2,
-    max_retries=16,
+    retry_backoff_max=RETRY_MAX_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Poll batch status',
     pipeline='import_measurements',
     task='poll_batch_status',
 )
-def poll_batch_status(task, handle, subject, measurement_id):
+def poll_batch_status(handle, subject, measurement_id):
     """
-    :param celery.Task task:
     :param str handle:
     :param str subject:
     :param int measurement_id:
     """
-    try:
+    with logger.tracer.span('GetBatchStatus'):
         response = ledger.get_batch_status(handle)
-    except ols.LedgerException as e:
-        logger.exception(f'Ledger raise an exception when polling handle', extra={
-            'handle': handle,
-            'subject': subject,
-            'error_message': str(e),
-            'error_code': e.code,
-            'pipeline': 'import_measurements',
-            'task': 'submit_to_ledger',
-        })
-        raise
 
     if response.status == ols.BatchStatus.COMMITTED:
         logger.error('Ledger submitted', extra={
@@ -251,21 +235,15 @@ def poll_batch_status(task, handle, subject, measurement_id):
             'task': 'submit_to_ledger',
         })
     elif response.status == ols.BatchStatus.UNKNOWN:
-        logger.error('Batch submit UNKNOWN: Re-submitting', extra={
+        logger.error('Batch submit UNKNOWN: Retrying', extra={
             'subject': subject,
             'handle': handle,
             'pipeline': 'import_measurements',
             'task': 'submit_to_ledger',
         })
-
-        submit_to_ledger \
-            .si(subject=subject, measurement_id=measurement_id) \
-            .apply_async()
+        raise Exception('Retry task')
     else:
-        raise task.retry(
-            max_retries=MAX_POLLING_RETRIES,
-            countdown=POLLING_DELAY,
-        )
+        raise Exception('Retry task')
 
 
 @celery_app.task(

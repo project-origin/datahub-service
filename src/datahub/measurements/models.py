@@ -204,8 +204,6 @@ class GetMeasurementSummaryRequest:
         unique_values,
     )))
 
-    type: MeasurementType = field(default=None, metadata=dict(by_value=True))
-
 
 @dataclass
 class GetMeasurementSummaryResponse:
