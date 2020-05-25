@@ -3,6 +3,7 @@ from celery.schedules import crontab
 from datahub.tasks import celery_app
 
 from .import_measurements import get_distinct_gsrn
+from .resubmit_measurements import resubmit_measurements
 from .compile_disclosure import get_disclosures
 
 
@@ -14,6 +15,13 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(
         crontab(hour='*/3', minute=0),
         get_distinct_gsrn.s(),
+    )
+
+    # RESUBMIT UNPUBLISHED MEASUREMENTS TO THE LEDGER
+    # Executes every hour
+    sender.add_periodic_task(
+        crontab(hour='*/1', minute=0),
+        resubmit_measurements.s(),
     )
 
     # COMPILE DISCLOSURES

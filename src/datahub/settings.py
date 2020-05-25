@@ -94,3 +94,5 @@ AZURE_APP_INSIGHTS_CONN_STRING = os.environ.get(
 FIRST_MEASUREMENT_TIME = datetime(2019, 9, 15, 0, 0, tzinfo=timezone.utc)
 
 UNKNOWN_TECHNOLOGY_LABEL = 'Unknown'
+
+BATCH_RESUBMIT_AFTER_HOURS = 6

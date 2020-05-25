@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy import func, bindparam
+from sqlalchemy import func, bindparam, text
 from datetime import datetime
 from itertools import groupby
 from functools import lru_cache
@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from datahub.ggo import Ggo
 from datahub.common import DateTimeRange, LabelRange
 from datahub.meteringpoints import MeteringPoint, MeasurementType
+from datahub.settings import BATCH_RESUBMIT_AFTER_HOURS
 
 from .models import (
     Measurement,
@@ -157,6 +158,16 @@ class MeasurementQuery(object):
 
         return self.__class__(self.session, q) \
             .is_production()
+
+    def needs_resubmit_to_ledger(self):
+        """
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            Measurement.published.is_(False),
+            Measurement.submitted <= text(
+                "NOW() - INTERVAL '%d HOURS'" % BATCH_RESUBMIT_AFTER_HOURS)
+        ))
 
     def get_distinct_begins(self):
         """

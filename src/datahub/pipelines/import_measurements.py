@@ -6,17 +6,17 @@ from celery import group, chain
 
 from datahub import logger
 from datahub.db import atomic, inject_session
-from datahub.settings import LEDGER_URL, DEBUG
 from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
 from datahub.meteringpoints import MeteringPointQuery, MeasurementType
 from datahub.services.eloverblik import EloverblikService
 from datahub.measurements import MeasurementQuery, MeasurementImportController
+from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
 
 
 # Settings
 RETRY_MAX_DELAY = 60
-MAX_RETRIES = (24 * 60 * 60) / RETRY_MAX_DELAY
+MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / RETRY_MAX_DELAY
 
 
 # Services
@@ -148,7 +148,7 @@ def import_measurements(subject, gsrn, session):
     pipeline='import_measurements',
     task='submit_to_ledger',
 )
-@inject_session
+@atomic
 def submit_to_ledger(subject, measurement_id, session):
     """
     :param str subject:
@@ -194,6 +194,8 @@ def submit_to_ledger(subject, measurement_id, session):
         'pipeline': 'import_measurements',
         'task': 'submit_to_ledger',
     })
+
+    measurement.set_submitted_to_ledger()
 
     return handle
 
