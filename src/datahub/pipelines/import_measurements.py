@@ -10,8 +10,12 @@ from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
 from datahub.meteringpoints import MeteringPointQuery, MeasurementType
 from datahub.services.eloverblik import EloverblikService
-from datahub.measurements import MeasurementQuery, MeasurementImportController
 from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
+from datahub.measurements import (
+    Measurement,
+    MeasurementQuery,
+    MeasurementImportController,
+)
 
 
 # Settings
@@ -28,7 +32,7 @@ ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
 
 def start_import_measurements_pipeline():
     """
-    TODO
+    Starts a pipeline that imports [new] measurements for all meteringpoints.
     """
     get_distinct_gsrn \
         .s() \
@@ -37,7 +41,7 @@ def start_import_measurements_pipeline():
 
 def start_import_measurements_pipeline_for(subject, gsrn):
     """
-    TODO
+    Starts a pipeline that imports measurements for a specific meteringpoint.
 
     :param str subject:
     :param str gsrn:
@@ -45,6 +49,43 @@ def start_import_measurements_pipeline_for(subject, gsrn):
     import_measurements \
         .s(subject=subject, gsrn=gsrn) \
         .apply_async()
+
+
+def start_submit_measurement_pipeline(measurement):
+    """
+    Starts a pipeline that submits a single measurement to the ledger.
+
+    :param Measurement measurement:
+    """
+    tasks = [
+        # Submit Batch with Measurement (and Ggo if PRODUCTION)
+        submit_to_ledger.si(
+            subject=measurement.sub,
+            measurement_id=measurement.id,
+        ),
+
+        # Poll for Batch status
+        poll_batch_status.s(
+            subject=measurement.sub,
+            measurement_id=measurement.id,
+        ),
+
+        # Update Measurement.published status attribute
+        update_measurement_status.si(
+            subject=measurement.sub,
+            measurement_id=measurement.id,
+        ),
+    ]
+
+    # If PRODUCTION, also invoke OnGgoIssued webhook
+    if measurement.type is MeasurementType.PRODUCTION:
+        tasks.append(invoke_webhook.si(
+            subject=measurement.sub,
+            gsrn=measurement.gsrn,
+            measurement_id=measurement.id,
+        ))
+
+    chain(*tasks).apply_async()
 
 
 @celery_app.task(
@@ -104,35 +145,7 @@ def import_measurements(subject, gsrn, session):
     measurements = importer.import_measurements_for(meteringpoint)
 
     for measurement in measurements:
-        tasks = [
-            # Submit Batch with Measurement (and Ggo if PRODUCTION)
-            submit_to_ledger.si(
-                subject=subject,
-                measurement_id=measurement.id,
-            ),
-
-            # Poll for Batch status
-            poll_batch_status.s(
-                subject=subject,
-                measurement_id=measurement.id,
-            ),
-
-            # Update Measurement.published status attribute
-            update_measurement_status.si(
-                subject=subject,
-                measurement_id=measurement.id,
-            ),
-        ]
-
-        # If PRODUCTION, also invoke OnGgoIssued webhook
-        if meteringpoint.type is MeasurementType.PRODUCTION:
-            tasks.append(invoke_webhook.si(
-                subject=meteringpoint.sub,
-                gsrn=gsrn,
-                measurement_id=measurement.id,
-            ))
-
-        chain(*tasks).apply_async()
+        start_submit_measurement_pipeline(measurement)
 
 
 @celery_app.task(
