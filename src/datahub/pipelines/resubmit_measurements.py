@@ -3,14 +3,12 @@ Resubmits unpublished measurements to the ledger. These are the measurements
 which has not been successfully submitted to the ledger for some reason,
 for instance if the ledger has been down for a period of time etc.
 """
-from celery import group
-
 from datahub import logger
 from datahub.db import inject_session
 from datahub.tasks import celery_app
 from datahub.measurements import MeasurementQuery
 
-from .import_measurements import submit_to_ledger
+from .import_measurements import start_submit_measurement_pipeline
 
 
 def start_resubmit_measurements_pipeline():
@@ -43,10 +41,5 @@ def resubmit_measurements(session):
         .needs_resubmit_to_ledger() \
         .all()
 
-    tasks = [
-        submit_to_ledger.s(subject=m.sub, measurement_id=m.id)
-        for m in measurements
-    ]
-
-    if measurements:
-        group(tasks).apply_async()
+    for measurement in measurements:
+        start_submit_measurement_pipeline(measurement)
