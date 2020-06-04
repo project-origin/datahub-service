@@ -39,7 +39,7 @@ class MeasurementImportController(object):
         if latest_begin:
             datetime_from = latest_begin + self.MEASUREMENT_DURATION
         elif FIRST_MEASUREMENT_TIME:
-            datetime.strptime(FIRST_MEASUREMENT_TIME, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone.utc)
+            datetime_from = datetime.strptime(FIRST_MEASUREMENT_TIME, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone.utc)
         else:
             datetime_from = (datetime.now() - relativedelta(months=1)) \
                 .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
