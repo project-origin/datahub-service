@@ -45,7 +45,8 @@ Name | Description | Example
 `WORKERS` | Number of Gunicorn threads to run for the web API | `3`
 `WORKER_CONNECTIONS` | Number of gevent greenthreads to run for each Gunicorn thread | `100`
 `CONCURRENCY` | Number of gevent greenthreads to execute asynchronous tasks | `100`
-
+**Debug:** | |
+`FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
 
 # Building container images
 
