@@ -91,7 +91,7 @@ AZURE_APP_INSIGHTS_CONN_STRING = os.environ.get(
     'AZURE_APP_INSIGHTS_CONN_STRING')
 
 # Used when debugging for importing test data
-FIRST_MEASUREMENT_TIME = datetime(2019, 9, 15, 0, 0, tzinfo=timezone.utc)
+FIRST_MEASUREMENT_TIME = os.environ.get('FIRST_MEASUREMENT_TIME')
 
 UNKNOWN_TECHNOLOGY_LABEL = 'Unknown'
 
