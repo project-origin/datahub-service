@@ -5,11 +5,11 @@ from datahub import logger
 from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
 from datahub.services.eloverblik import EloverblikService
-from datahub.meteringpoints import MeteringPointsImportController
+from datahub.meteringpoints import MeteringPointImporter
 
 
 service = EloverblikService()
-importer = MeteringPointsImportController()
+importer = MeteringPointImporter()
 webhook = WebhookService()
 
 

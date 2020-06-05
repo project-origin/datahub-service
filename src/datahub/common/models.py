@@ -91,9 +91,6 @@ class DateTimeRange:
 
 
 class SummaryResolution(IntEnum):
-    """
-    TODO
-    """
     all = 0
     year = 1
     month = 2
@@ -103,8 +100,5 @@ class SummaryResolution(IntEnum):
 
 @dataclass
 class SummaryGroup:
-    """
-    TODO
-    """
     group: List[str] = field(default_factory=list)
     values: List[int] = field(default_factory=list)

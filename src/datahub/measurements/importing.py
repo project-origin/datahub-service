@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 from datahub import logger
+from datahub.ggo import Ggo
 from datahub.db import atomic
 from datahub.services import eloverblik as e
 from datahub.meteringpoints import MeteringPoint, MeasurementType
@@ -10,20 +11,33 @@ from datahub.settings import DEBUG, FIRST_MEASUREMENT_TIME, GGO_EXPIRE_TIME
 
 from .models import Measurement
 from .queries import MeasurementQuery
-from ..ggo import Ggo
 
 
-class MeasurementImportController(object):
+eloverblik_service = e.EloverblikService()
+
+
+class MeasurementImporter(object):
     """
-    TODO
+    Helper class for importing Measurements from ElOverblik and issuing
+    GGOs for a specific MeteringPoint.
+
+    If measurements already exists for the MeteringPoint, then only
+    newer measurements are imported (continues where data stopped).
+    Otherwise it imports measurements from "day 1" (defined by
+    settings.FIRST_MEASUREMENT_TIME).
+
+    Issues GGOs where necessary (ie. if MeteringPoint is type PRODUCTION).
+
+    TODO Refactor and test this class
     """
     MEASUREMENT_DURATION = timedelta(hours=1)
-
-    service = e.EloverblikService()
 
     @atomic
     def import_measurements_for(self, meteringpoint, session):
         """
+        Imports measurements, and optionally issued GGOs,
+        for the provided MeteringPoint.
+
         :param MeteringPoint meteringpoint:
         :param Session session:
         :rtype: list[Measurement]
@@ -106,7 +120,7 @@ class MeasurementImportController(object):
         # The service does not include time series at date=datetime_to,
         # so we add one day to make sure any time series at the date
         # of datetime_to is included in the result
-        imported_time_series = self.service.get_time_series(
+        imported_time_series = eloverblik_service.get_time_series(
             gsrn=meteringpoint.gsrn,
             date_from=datetime_from.date(),
             date_to=datetime_to.date() + timedelta(days=1),

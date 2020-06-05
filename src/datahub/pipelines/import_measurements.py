@@ -14,7 +14,7 @@ from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
 from datahub.measurements import (
     Measurement,
     MeasurementQuery,
-    MeasurementImportController,
+    MeasurementImporter,
 )
 
 
@@ -25,7 +25,7 @@ MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / RETRY_MAX_DELAY
 
 # Services
 service = EloverblikService()
-importer = MeasurementImportController()
+importer = MeasurementImporter()
 webhook = WebhookService()
 ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
 

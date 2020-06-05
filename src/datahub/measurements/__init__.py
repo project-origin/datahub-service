@@ -1,3 +1,3 @@
 from .models import Measurement
 from .queries import MeasurementQuery
-from .importing import MeasurementImportController
+from .importing import MeasurementImporter
