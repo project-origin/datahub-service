@@ -1,0 +1,767 @@
+openapi: 3.0.0
+info:
+  version: "1.0.0-oas3"
+  title: Project Origin DataHub Service
+  description: |
+    The document describes the API interface for Project Origin's DataHub Service.
+    
+    ## GitHub repository
+    
+    The project is available at [GitHub](https://github.com/project-origin/datahub-service).
+    
+    ## Authorization
+    
+    The client must provide the user's access token via the Authorization header in the form *Bearer \<token\>*.
+    
+schemes:
+  - https
+tags:
+  - name: MeteringPoints
+  - name: Measurements
+  - name: GGO
+  - name: Disclosures
+  - name: Technologies
+paths:
+
+
+  /meteringpoints:
+    post:
+      summary: Get a list of all MeteringPoints
+      description: >
+        Returns an array of all the user's MeteringPoints.
+      security:
+        - Bearer: []
+      tags:
+        - MeteringPoints
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  meteringpoints:
+                    type: array
+                    description: Array of MeteringPoint objects
+                    items:
+                      $ref: '#/definitions/MeteringPoint'
+                      
+                      
+  /meteringpoints/set-key:
+    post:
+      summary: Set a master key for a MeteringPoint
+      description: >
+        Set a BIP32 master extended key for a MeteringPoint (specified by its GSRN number). The key is used when publishing measurements and issuing GGOs for that specific MeteringPoint.
+      security:
+        - Bearer: []
+      tags:
+        - MeteringPoints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                gsrn:
+                  type: string
+                  example: '123456789012345'
+                key:
+                  type: string
+                  example: 'xprv9x9uBiJxhu2KAKfh3ewbT9FEQB17o2jrRdTA99K5HE7VeXvDMD9uCzSUCLipuSmMe8oq3dMXVyBCE88mbvKEKSxCPdacKGuHr31EX3HnbyT'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                      
+                      
+  /measurements:
+    post:
+      summary: Get a list of Measurements
+      description: >
+        Returns an array of Measurement objects which belongs to any of the user's MeteringPoints.
+        
+        ## Offset and limit (paging)
+        
+        The client must provide an "offset" and a "limit" of how many objects to
+        return in each request. The response JSON contains the total amount
+        of results (independent of the provided offset and limit), and can
+        be used to calculate total number of requests required to get all Measurements.
+        Its adviced to keep the provided "limit" reasonable low, as JSON encoding-
+        and decoding can be rather memory consuming.
+        
+        ## Filtering
+        
+        The "filters" object in the request body allows to narrow down results.
+        All filters are optional, but can be mixed to perform complex searches.
+        Some filters are an array of values, which filters out any Measurements not having
+        any of the provided values (analogous to an SQL "IN" statement).
+        
+        ### Filtering on Measurement begin
+        
+        "begin" is the time at which the measurement began. It usually have an
+        end time which is one hour later, but only the begin is filtered upon.
+        It is possible to filters Measurements on either one specific begin, or a
+        range/period defined by a from- and to datetime.
+        These two options should be considered mutually exclusive.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                offset:
+                  type: integer
+                limit:
+                  type: integer
+                  example: 20
+                filters:
+                  $ref: '#/definitions/MeasurementFilters'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  total:
+                    type: integer
+                    description: Total number of results
+                    example: 999
+                  measurements:
+                    type: array
+                    description: Array of Measurement objects
+                    items:
+                      $ref: '#/definitions/Measurement'
+
+
+
+
+  /measurements/summary:
+    post:
+      summary: Get a summary of Measurements
+      description: >
+        Returns a summary of the user's Measurements, or a subset hereof. Useful for plotting or visualizing data.
+        
+        ## Filtering
+        
+        Measurements are filtered in the same way as with the /measurements endpoint (above).
+        
+        ## Time resolution
+        
+        Data is returned in the data/time resolution specified in the request. The total amount of energy (Wh) is aggregated/summarized for each period. Available resolutions are:
+        
+        - all
+        
+        - year
+        
+        - month
+        
+        - day
+        
+        - hour
+        
+        ## Labels
+        
+        The response contans an array of labels in order. Each label is a string representing a period of time according to the requested time resolution. There may be gaps in the array, depending on the source data, unless the "fill" parameter in the request is set to true.
+        
+        ## Grouping
+        
+        Data can be grouped by multiple different keys, much like an SQL "GROUP BY" statement.
+        The returned data is split into one or more groups. Each group has an array of values, which is the aggregated energy for a period of time. The values are in same order as the returned labels. Values may be null.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                fill:
+                  type: boolean
+                  description: Whether or not to fill gaps in the array of labels
+                resolution:
+                  $ref: '#/definitions/SummaryResolution'
+                grouping:
+                  $ref: '#/definitions/SummaryGrouping'
+                filters:
+                  $ref: '#/definitions/MeasurementFilters'
+      responses:
+        '200':
+          description: asd
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  labels:
+                    type: array
+                    description: Date/datetime labels
+                    example: ['2020-01-01', '2020-01-02', '2020-01-03']
+                    items:
+                      type: string
+                  groups:
+                    type: array
+                    description: Array of result groups
+                    items:
+                      $ref: '#/definitions/SummaryGroup'
+                    example:
+                      group:
+                        example: ['production', '123456789012345']
+              example:
+                success: true
+                labels: ['2020-01-01', '2020-01-02', '2020-01-03']
+                groups:
+                  - group: ['123456789012345']
+                    values: [2000, 5000, 3000]
+                  - group: ['987654321054321']
+                    values: [4000, 1000, 6000]
+                      
+                      
+  /measurements/consumed:
+    post:
+      summary: Get one consumption Measurement
+      description: >
+        Returns a single consumption Measurement for a specific MeteringPoint (specified by its GSRN number) at a specific begin. Returns null if no Measurement exists at the given time, or if the MeteringPoint is not a energy consumer.
+        
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                gsrn:
+                  type: string
+                  example: '123456789012345'
+                begin:
+                  type: string
+                  format: date-time
+                  example: '2020-01-01 00:00:00'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  measurement:
+                    $ref: '#/definitions/Measurement'
+                      
+                      
+  /measurements/produced:
+    post:
+      summary: Get one production Measurement
+      description: >
+        Returns a single production Measurement for a specific MeteringPoint (specified by its GSRN number) at a specific begin. Returns null if no Measurement exists at the given time, or if the MeteringPoint is not a energy producer.
+        
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                gsrn:
+                  type: string
+                  example: '123456789012345'
+                begin:
+                  type: string
+                  format: date-time
+                  example: '2020-01-01 00:00:00'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  measurement:
+                    $ref: '#/definitions/Measurement'
+                      
+                      
+  /measurements/begin-range:
+    post:
+      summary: Get the first and last begin for a series of Measurements
+      description: >
+        Given a set of filters, this endpoint returns the first and last "begin" for all measurements in the result set. Useful for checking when measuring began and ended.
+        
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                filters:
+                  $ref: '#/definitions/MeasurementFilters'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  first:
+                    type: string
+                    format: date-time
+                    example: '2020-01-01 00:00:00'
+                  last:
+                    type: string
+                    format: date-time
+                    example: '2020-12-31 23:00:00'
+
+
+
+
+  /ggo:
+    post:
+      summary: Get a list of issued GGOs
+      description: >
+        Returns an array of GGO objects which has been issued to any of the user's MeteringPoints.
+        
+        ## Offset and limit (paging)
+        
+        The client must provide an "offset" and a "limit" of how many objects to
+        return in each request. The response JSON contains the total amount
+        of results (independent of the provided offset and limit), and can
+        be used to calculate total number of requests required to get all GGOs.
+        Its adviced to keep the provided "limit" reasonable low, as JSON encoding-
+        and decoding can be rather memory consuming.
+        
+        ## Filtering
+        
+        The "filters" object in the request body allows to narrow down results.
+        All filters are optional, but can be mixed to perform complex searches.
+        Some filters are an array of values, which filters out any GGOs not having
+        any of the provided values (analogous to an SQL "IN" statement).
+        
+        ### Filtering on GGO begin
+        
+        "begin" is the time at which the energy production began. It usually have an
+        end time which is one hour later, but only the begin is filtered upon.
+        It is possible to filters GGOs on either one specific begin, or a
+        range/period defined by a from- and to datetime.
+        These two options should be considered mutually exclusive.
+        
+      security:
+        - Bearer: []
+      tags:
+        - GGO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                offset:
+                  type: integer
+                limit:
+                  type: integer
+                  example: 20
+                filters:
+                  $ref: '#/definitions/GgoFilters'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  total:
+                    type: integer
+                    description: Total number of results
+                    example: 999
+                  results:
+                    type: array
+                    description: Array of GGO objects
+                    items:
+                      $ref: '#/definitions/Ggo'
+
+
+
+  /disclosure:
+    post:
+      summary: Get a disclosure
+      description: >
+        Set a BIP32 master extended key for a MeteringPoint (specified by its GSRN number). The key is used when publishing measurements and issuing GGOs for that specific MeteringPoint.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                id:
+                  type: string
+                  example: '9a4b10d0-b598-4177-9514-36223a8f4846'
+                resolution:
+                  $ref: '#/definitions/SummaryResolution'
+                dateRange:
+                  $ref: '#/definitions/DateRange'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+
+  /technologies:
+    post:
+      summary: Get a list of technologies
+      description: >
+        Returns an array of all combinations of technology-code and fuel-code together with a human-readable string representation of the technology type.
+        
+      security:
+        - Bearer: []
+      tags:
+        - Technologies
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  technologies:
+                    type: array
+                    description: Array of Technology objects
+                    items:
+                      $ref: '#/definitions/Technology'
+
+
+
+
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+
+
+
+definitions:
+  DateRange:
+    type: object
+    description: A peroid of time defined by its begin and end (both included)
+    properties:
+      begin:
+        type: string
+        format: date
+        example: '2020-01-01'
+      end:
+        type: string
+        format: date
+        example: '2020-12-31'
+        
+        
+  DateTimeRange:
+    type: object
+    description: A peroid of time defined by its begin and end (both included)
+    properties:
+      begin:
+        type: string
+        format: date-time
+        example: '2020-01-01 00:00:00'
+      end:
+        type: string
+        format: date-time
+        example: '2020-01-03 23:00:00'
+
+  SummaryResolution:
+    type: string
+    description: Date/datetime resolution of returned GGO summaries
+    example: 'day'
+    enum:
+      - all
+      - year
+      - month
+      - day
+      - hour
+
+  SummaryGrouping:
+    type: array
+    description: Data grouping of returned Measurement summaries
+    example: ['gsrn']
+    items:
+      type: string
+      enum:
+        - type
+        - gsrn
+        - sector
+
+  SummaryGroup:
+    type: object
+    description: A grouping of values in a Measurement summary
+    properties:
+      group:
+        type: array
+        example: ['123456789012345']
+        items:
+          type: string
+
+  MeasurementType:
+    type: string
+    description: Type of Measurement or MeteringPoint
+    example: 'production'
+    enum:
+      - production
+      - consumption
+
+  MeteringPoint:
+    type: object
+    properties:
+      gsrn:
+        type: string
+        description: The unique GSRN number
+        example: '123456789012345'
+      type:
+        $ref: '#/definitions/MeasurementType'
+      sector:
+        type: string
+        description: The sector in which the MeteringPoint is located
+        example: 'DK1'
+      technologyCode:
+        type: string
+        description: The technology code (only if type is production)
+        example: 'T010000'
+      fuelCode:
+        type: string
+        description: The fuel code (only if type is production)
+        example: 'F01040100'
+      streetCode:
+        type: string
+      streetName:
+        type: string
+      buildingNumber:
+        type: string
+      cityName:
+        type: string
+      postCode:
+        type: string
+      municipalityCode:
+        type: string
+
+  Measurement:
+    type: object
+    properties:
+      address:
+        type: string
+        description: The Measurement's address on the ledger
+        example: '849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b'
+      begin:
+        type: string
+        format: date-time
+        description: The time at which the measurement started
+        example: '2020-01-01 00:00:00'
+      end:
+        type: string
+        format: date-time
+        description: The time at which the measurement ended
+        example: '2020-01-01 01:00:00'
+      amount:
+        type: integer
+        description: The amount of energy measured in Wh
+        example: 10000
+      gsrn:
+        type: string
+        description: GSRN number of the MeteringPoint
+        example: '123456789012345'
+      sector:
+        type: string
+        description: The sector in which the MeteringPoint is located
+        example: 'DK1'
+      type:
+        $ref: '#/definitions/MeasurementType'
+
+  MeasurementFilters:
+    type: object
+    description: Filters when selecting Measurements
+    properties:
+      begin:
+        type: string
+        format: date-time
+      beginRange:
+        $ref: '#/definitions/DateTimeRange'
+      sector:
+        type: array
+        description: Narrows Measurements down to those issued within certain sector(s)
+        example:
+          - DK1
+          - DK2
+        items:
+          type: string
+      gsrn:
+        type: array
+        description: >-
+          Narrows Measurements down to specific MeteringPoints(s)
+          (specified by their GSRN number)
+        example:
+          - '123456789012345'
+          - '987654321098765'
+        items:
+          type: string
+      type:
+        $ref: '#/definitions/MeasurementType'
+
+  Ggo:
+    type: object
+    description: One specific GGO
+    properties:
+      address:
+        type: string
+        description: The GGOs address on the ledger
+        example: '849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b'
+      sector:
+        type: string
+        description: The sector in which the energy was produced
+        example: 'DK1'
+      begin:
+        type: string
+        format: date-time
+        description: The time at which the production (measurement) started
+        example: '2020-01-01 00:00:00'
+      end:
+        type: string
+        format: date-time
+        description: The time at which the production (measurement) ended
+        example: '2020-01-01 01:00:00'
+      amount:
+        type: integer
+        description: The amount of energy produced in Wh
+        example: 10000
+      technologyCode:
+        type: string
+        description: The technology code of the production MeteringPoint
+        example: 'T010000'
+      fuelCode:
+        type: string
+        description: The fuel code of the production MeteringPoint
+        example: 'F01040100'
+
+
+  GgoFilters:
+    type: object
+    description: Filters when selecting GGOs
+    properties:
+      begin:
+        type: string
+        format: date-time
+      beginRange:
+        $ref: '#/definitions/DateTimeRange'
+      sector:
+        type: array
+        description: Narrows GGOs down to those issued within certain sector(s)
+        example:
+          - DK1
+          - DK2
+        items:
+          type: string
+      technologyCode:
+        type: array
+        description: Narrows GGOs down to those issued with certain technology code(s)
+        example:
+          - T010000
+          - T040101
+        items:
+          type: string
+      fuelCode:
+        type: array
+        description: Narrows GGOs down to those issued with certain fuel code(s)
+        example:
+          - F01040100
+          - F01010501
+        items:
+          type: string
+      issueGsrn:
+        type: array
+        description: >-
+          Narrows GGOs down to those issued to specific MeteringPoints(s)
+          (specified by their GSRN number)
+        example:
+          - '123456789012345'
+          - '987654321098765'
+        items:
+          type: string
+      retireGsrn:
+        type: array
+        description: >-
+          Narrows GGOs down to those retired to specific MeteringPoints(s)
+          (specified by their GSRN number)
+        example:
+          - '123456789012345'
+          - '987654321098765'
+        items:
+          type: string
+      category:
+        $ref: '#/definitions/GgoCategory'
+
+  Technology:
+    type: object
+    properties:
+      technology:
+        type: string
+        description: A string representation of the technology
+        example: 'Wind'
+      technologyCode:
+        type: string
+        description: Technology code
+        example: 'T010000'
+      fuelCode:
+        type: string
+        description: Technology code
+        example: 'F01040100'
