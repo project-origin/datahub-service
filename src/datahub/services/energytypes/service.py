@@ -21,6 +21,10 @@ class EnergyTypeService(object):
             verify=not DEBUG,
         )
 
+        if response.status_code == 404:
+            logger.warning('Could not find fuel or tech code for GRSN', extra={'gsrn': gsrn})
+            raise Exception('Could not find fuel or tech code for GRSN')
+
         if response.status_code != 200:
             raise Exception('%d\n\n%s\n\n' % (response.status_code, response.content))
 

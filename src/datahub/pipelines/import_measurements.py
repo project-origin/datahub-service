@@ -51,7 +51,7 @@ def start_import_measurements_pipeline_for(subject, gsrn):
         .apply_async()
 
 
-def start_submit_measurement_pipeline(measurement):
+def start_submit_measurement_pipeline(measurement, meteringpoint):
     """
     Starts a pipeline that submits a single measurement to the ledger.
 
@@ -60,28 +60,28 @@ def start_submit_measurement_pipeline(measurement):
     tasks = [
         # Submit Batch with Measurement (and Ggo if PRODUCTION)
         submit_to_ledger.si(
-            subject=measurement.sub,
+            subject=meteringpoint.sub,
             measurement_id=measurement.id,
         ),
 
         # Poll for Batch status
         poll_batch_status.s(
-            subject=measurement.sub,
+            subject=meteringpoint.sub,
             measurement_id=measurement.id,
         ),
 
         # Update Measurement.published status attribute
         update_measurement_status.si(
-            subject=measurement.sub,
+            subject=meteringpoint.sub,
             measurement_id=measurement.id,
         ),
     ]
 
     # If PRODUCTION, also invoke OnGgoIssued webhook
-    if measurement.type is MeasurementType.PRODUCTION:
+    if meteringpoint.type is MeasurementType.PRODUCTION:
         tasks.append(invoke_webhook.si(
-            subject=measurement.sub,
-            gsrn=measurement.gsrn,
+            subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
             measurement_id=measurement.id,
         ))
 
@@ -145,7 +145,7 @@ def import_measurements(subject, gsrn, session):
     measurements = importer.import_measurements_for(meteringpoint)
 
     for measurement in measurements:
-        start_submit_measurement_pipeline(measurement)
+        start_submit_measurement_pipeline(measurement, meteringpoint)
 
 
 @celery_app.task(
