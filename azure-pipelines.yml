@@ -1,14 +1,23 @@
 trigger:
-- master
-- develop
+  branches:
+    include:
+    - master
+    - test
+    - develop
+
+# no PR triggers
+pr: none
 
 resources:
 - repo: self
 
 variables:
   imageName: 'projectorigin/datahub-service'
-  vmImageName: 'ubuntu-latest'
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+    kubeCon: 'kubecon-eloprindelse-prod'
+    tag: '$(Build.BuildId)'
+    namespace: 'eloprindelse'
+  ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
     kubeCon: 'test-kube-con'
     tag: '$(Build.BuildId)'
     namespace: 'test-project-origin'
@@ -17,42 +26,36 @@ variables:
     tag: 'dev.$(Build.BuildId)'
     namespace: 'dev-project-origin'
 
-stages:
-- stage: build_and_publish
-  displayName: Build and publish
-  jobs:  
-  - job: docker_build_push
-    displayName: Docker build and push
+jobs:  
+  - job: build_deploy
+    displayName: Build and Deploy
     pool:
-      vmImage: $(vmImageName)
+      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+        name: eloprindelse-prod
+      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
+        vmImage: 'ubuntu-latest'
+
     steps:
-    - task: Docker@2
-      displayName: Build docker image
-      inputs:
-        command: build
-        repository: $(imageName)
-        Dockerfile: Dockerfile
-        tags: |
-          latest
-          $(tag)
-    - task: Docker@2
-      displayName: Push image
-      inputs:
-        command: push
-        repository: $(imageName)
-        containerRegistry: dockerHub
-        tags: |
-          latest
-          $(tag)
-          
-- stage: update_cluster
-  displayName: Update kubernetes
-  jobs:  
-  - job: push_to_cluster
-    displayName: Push to Cluster
-    pool:
-      vmImage: $(vmImageName)
-    steps:
+      - task: Docker@2
+        displayName: Build docker image
+        inputs:
+          command: build
+          repository: $(imageName)
+          Dockerfile: Dockerfile
+          tags: |
+            latest
+            $(tag)
+
+      - task: Docker@2
+        displayName: Push image
+        inputs:
+          command: push
+          repository: $(imageName)
+          containerRegistry: dockerHub
+          tags: |
+            latest
+            $(tag)
+
       - task: HelmDeploy@0
         displayName: Helm upgrade
         inputs:
