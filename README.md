@@ -47,6 +47,7 @@ Name | Description | Example
 `CONCURRENCY` | Number of gevent greenthreads to execute asynchronous tasks | `100`
 **Debug:** | |
 `FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
+`LAST_MEASUREMENT_TIME` | Set a date to end pulling data from | `2021-09-01T00:00:00Z`
 
 # Building container images
 

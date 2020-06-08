@@ -99,3 +99,10 @@ if os.environ.get('FIRST_MEASUREMENT_TIME'):
         .astimezone(timezone.utc)
 else:
     FIRST_MEASUREMENT_TIME = None
+
+if os.environ.get('LAST_MEASUREMENT_TIME'):
+    LAST_MEASUREMENT_TIME = datetime\
+        .strptime(os.environ['LAST_MEASUREMENT_TIME'], '%Y-%m-%dT%H:%M:%SZ') \
+        .astimezone(timezone.utc)
+else:
+    LAST_MEASUREMENT_TIME = None
