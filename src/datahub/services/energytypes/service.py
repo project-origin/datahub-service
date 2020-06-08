@@ -6,11 +6,12 @@ from datahub.settings import ENERGY_TYPE_SERVICE_URL, DEBUG
 
 class EnergyTypeService(object):
     """
-    TODO
+    Interface for importing data from EnergyTypeService.
     """
-
     def get_energy_type(self, gsrn):
         """
+        Returns a tuple of (technology code, fuel code) for a MeteringPoint.
+
         :param str gsrn:
         :rtype (str, str):
         :return: A tuple of (technologyCode, fuelCode)

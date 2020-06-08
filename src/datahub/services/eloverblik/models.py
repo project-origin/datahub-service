@@ -18,19 +18,6 @@ class MeterPointType(Enum):
 
 
 @dataclass
-class Authorization:
-    id: str = field(default=None)
-    third_party_name: str = field(default=None, metadata=dict(data_key='thirdPartyName'))
-    valid_from: datetime = field(default=None, metadata=dict(data_key='validFrom', format='%m/%d/%Y %H:%M:%S'))
-    valid_to: datetime = field(default=None, metadata=dict(data_key='validTo', format='%m/%d/%Y %H:%M:%S'))
-    customer_name: str = field(default=None, metadata=dict(data_key='customerName'))
-    customer_cvr: str = field(default=None, metadata=dict(data_key='customerCVR'))
-    customer_key: str = field(default=None, metadata=dict(data_key='customerKey'))
-    time_stamp: str = field(default=None, metadata=dict(data_key='timeStamp'))
-    include_future_metering_points: bool = field(default=None, metadata=dict(data_key='includeFutureMeteringPoints'))
-
-
-@dataclass
 class ChildMeteringPoint:
     metering_point_id: str = field(default=None, metadata=dict(data_key='meteringPointId'))
     parent_metering_point_id: str = field(default=None, metadata=dict(data_key='parentMeteringPointId'))
@@ -70,27 +57,9 @@ class MeteringPoint:
         return self.metering_point_id
 
 
-# @dataclass
-# class MeterReading:
-#     id: str = field(default=None)
-#     third_party_name: str = field(default=None, metadata=dict(data_key='thirdPartyName'))
-#     valid_from: datetime = field(default=None, metadata=dict(data_key='validFrom', format='%m/%d/%Y %H:%M:%S'))
-#     valid_to: datetime = field(default=None, metadata=dict(data_key='validTo', format='%m/%d/%Y %H:%M:%S'))
-#     customer_name: str = field(default=None, metadata=dict(data_key='customerName'))
-#     customer_cvr: str = field(default=None, metadata=dict(data_key='customerCVR'))
-#     customer_key: str = field(default=None, metadata=dict(data_key='customerKey'))
-#     time_stamp: str = field(default=None, metadata=dict(data_key='timeStamp'))
-#     include_future_metering_points: bool = field(default=None, metadata=dict(data_key='includeFutureMeteringPoints'))
-
-
 @dataclass
 class GetTokenResponse:
     result: str
-
-
-@dataclass
-class GetAuthorizationsResponse:
-    result: List[Authorization]
 
 
 @dataclass
