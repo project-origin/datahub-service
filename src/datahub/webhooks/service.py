@@ -35,7 +35,7 @@ class WebhookService(object):
         :param str subject:
         :param str url:
         :param str secret:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         """
         session.add(Subscription(
             event=event,
@@ -51,7 +51,7 @@ class WebhookService(object):
         :param str subject:
         :param Schema schema:
         :param obj request:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         """
         filters = (
             Subscription.event == event,

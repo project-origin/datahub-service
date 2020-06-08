@@ -291,7 +291,7 @@ class MeasurementSummary(object):
 
     def __init__(self, session, query, resolution, grouping):
         """
-        :param Session session:
+        :param sa.orm.Session session:
         :param MeasurementQuery query:
         :param SummaryResolution resolution:
         :param list[str] grouping:

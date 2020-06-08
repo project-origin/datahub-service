@@ -29,7 +29,7 @@ class GetGgoList(Controller):
         """
         :param GetGgoListRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetGgoListResponse
         """
         ggos = GgoQuery(session) \
