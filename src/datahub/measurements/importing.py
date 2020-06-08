@@ -50,11 +50,6 @@ class MeasurementImporter(object):
         # Convert the imported documents to Measurement objects
         imported_measurements = list(self.flattern_time_series(imported_time_series))
 
-        logger.info('FOOBAR %s, %s, %s' % (
-            str(begin),
-            str(imported_measurements[0].begin.astimezone(timezone.utc)),
-            str(end)))
-
         return (
             m for m in imported_measurements
             if begin <= m.begin.astimezone(timezone.utc) < end
