@@ -1,21 +1,31 @@
 """
-TODO write this
+Asynchronous tasks for importing MeteringPoints from ElOverblik.
+
+One entrypoint exists:
+
+    start_import_meteringpoints_pipeline()
+
 """
 from datahub import logger
 from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
 from datahub.services.eloverblik import EloverblikService
-from datahub.meteringpoints import MeteringPointsImportController
+from datahub.meteringpoints import MeteringPointImporter
 
 
 service = EloverblikService()
-importer = MeteringPointsImportController()
+importer = MeteringPointImporter()
 webhook = WebhookService()
 
 
 def start_import_meteringpoints_pipeline(subject):
     """
-    TODO
+    Starts a pipeline which imports meteringpoints for a specific subject.
+
+        Step 1: import_meteringpoints()  imports meteringpoints for
+                a specific subject
+
+        Step 2: Invokes the "METERINGPOINTS AVAILABLE" webhook
 
     :param str subject:
     """
@@ -38,6 +48,8 @@ def start_import_meteringpoints_pipeline(subject):
 )
 def import_meteringpoints(subject):
     """
+    Imports meteringpoints for a specific subject
+
     :param str subject:
     """
     importer.import_meteringpoints(subject)
@@ -59,6 +71,8 @@ def import_meteringpoints(subject):
 )
 def invoke_webhook(subject):
     """
+    invokes the "METERINGPOINTS AVAILABLE" webhook.
+
     :param str subject:
     """
     webhook.on_meteringpoints_available(subject)

@@ -18,7 +18,14 @@ from .models import (
 
 class GetOnboardingUrl(Controller):
     """
-    TODO
+    Generates and returns an absolute URL to perform ElOverblik onboarding.
+    The generated URL is personal to the user (subject) identified by
+    their access token.
+
+    Requests must provide a return URL, where the client is redirected to
+    after completing the onboarding process. The client is, however,
+    redirected back to DataHubService (OnboardingCallback, below)
+    before being redirected to the provided return URL.
     """
     Request = md.class_schema(GetOnboardingUrlRequest)
     Response = md.class_schema(GetOnboardingUrlResponse)
@@ -48,7 +55,8 @@ class GetOnboardingUrl(Controller):
 
 class OnboardingCallback(Controller):
     """
-    TODO
+    Callback endpoint to handle completion of ElOverblik onboarding process.
+    Upon completion is triggered a pipeline to import their MeteringPoints.
     """
     METHOD = 'GET'
 

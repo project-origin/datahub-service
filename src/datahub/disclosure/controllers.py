@@ -118,7 +118,7 @@ class GetDisclosure(Controller):
             if disclosure.publicize_gsrn:
                 gsrn = mp.gsrn
             if disclosure.publicize_physical_address:
-                address = mp.meteringpoint.address
+                address = mp.meteringpoint.physical_address
 
             data.append(DisclosureDataSeries(
                 gsrn=gsrn,
@@ -267,7 +267,7 @@ class CreateDisclosure(Controller):
         :rtype: MeteringPoint
         """
         meteringpoint = MeteringPointQuery(session) \
-            .has_sub(sub) \
+            .belongs_to(sub) \
             .has_gsrn(gsrn) \
             .is_consumption() \
             .one_or_none()

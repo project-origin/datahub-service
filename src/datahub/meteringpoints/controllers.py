@@ -4,15 +4,15 @@ from datahub import logger
 from datahub.auth import Token, require_oauth, inject_token
 from datahub.db import inject_session, atomic
 from datahub.http import Controller
+from datahub.pipelines import start_import_measurements_pipeline_for
 
 from .queries import MeteringPointQuery
 from .models import GetMeteringPointsResponse, SetKeyRequest, SetKeyResponse
-from ..pipelines import start_import_measurements_pipeline_for
 
 
 class GetMeteringPoints(Controller):
     """
-    TODO
+    Returns a list of all the user's MeteringPoints.
     """
     Response = md.class_schema(GetMeteringPointsResponse)
 
@@ -37,7 +37,11 @@ class GetMeteringPoints(Controller):
 
 class SetKey(Controller):
     """
-    TODO
+    Set a BIP32 master extended key for a MeteringPoint (specified
+    by its GSRN number). The key is used when publishing measurements
+    and issuing GGOs for that specific MeteringPoint.
+
+    Setting the key initiates importing Measurements for the MeteringPoint.
     """
     Request = md.class_schema(SetKeyRequest)
     Response = md.class_schema(SetKeyResponse)

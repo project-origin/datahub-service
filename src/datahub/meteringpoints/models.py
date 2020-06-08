@@ -14,7 +14,8 @@ class MeasurementType(Enum):
 
 class MeteringPoint(ModelBase):
     """
-    TODO
+    Implementation of a single MeteringPoint that belongs to a user
+    identified by their subject (sub).
     """
     __tablename__ = 'meteringpoint'
     __table_args__ = (
@@ -45,13 +46,17 @@ class MeteringPoint(ModelBase):
     @property
     def key(self):
         """
+        Returns the ledger key for this meteringpoint.
+
         :rtype: BIP32Key
         """
         return BIP32Key.fromExtendedKey(self.ledger_extended_key)
 
     @property
-    def address(self):
+    def physical_address(self):
         """
+        Returns a concatenated string representation of the physical address.
+
         :rtype: str
         """
         return (
@@ -61,12 +66,16 @@ class MeteringPoint(ModelBase):
 
     def is_producer(self):
         """
+        Returns True if this meteringpoint is an energy producer.
+
         :rtype: bool
         """
         return self.type is MeasurementType.PRODUCTION
 
     def is_consumer(self):
         """
+        Returns True if this meteringpoint is an energy consumer.
+
         :rtype: bool
         """
         return self.type is MeasurementType.CONSUMPTION
@@ -77,6 +86,10 @@ class MeteringPoint(ModelBase):
 
 @dataclass
 class MappedMeteringPoint:
+    """
+    A reflection of the MappedMetering class above, but supports JSON schema
+    serialization/deserialization using marshmallow/marshmallow-dataclass.
+    """
     gsrn: str
     type: MeasurementType = field(metadata=dict(by_value=True))
     sector: str

@@ -21,12 +21,32 @@ from .models import (
 
 class MeasurementQuery(object):
     """
-    TODO
+    Abstraction around querying Measurement objects from the database,
+    supporting cascade calls to combine filters.
+
+    Usage example::
+
+        query = MeasurementQuery(session) \
+            .belongs_to('65e58f0b-62dd-40c2-a540-f773b0beed66') \
+            .begins_at(datetime(2020, 1, 1, 0, 0))
+
+        for measurement in query:
+            pass
+
+    Attributes not present on the GgoQuery class is redirected to
+    SQLAlchemy's Query object, like count(), all() etc., for example::
+
+        query = MeasurementQuery(session) \
+            .belongs_to('65e58f0b-62dd-40c2-a540-f773b0beed66') \
+            .begins_at(datetime(2020, 1, 1, 0, 0)) \
+            .offset(100) \
+            .limit(20) \
+            .count()
     """
     def __init__(self, session, q=None):
         """
-        :param Session session:
-        :param Query q:
+        :param sa.orm.Session session:
+        :param sa.orm.Query q:
         """
         self.session = session
         if q is not None:
@@ -46,6 +66,8 @@ class MeasurementQuery(object):
 
     def apply_filters(self, filters):
         """
+        Apply filters using a MeasurementFilters object.
+
         :param MeasurementFilters filters:
         :rtype: MeasurementQuery
         """
@@ -67,6 +89,9 @@ class MeasurementQuery(object):
 
     def belongs_to(self, sub):
         """
+        Only include measurements which belong to the user identified by
+        the provided sub (subject).
+
         :param str sub:
         :rtype: MeasurementQuery
         """
@@ -76,6 +101,8 @@ class MeasurementQuery(object):
 
     def begins_at(self, begin):
         """
+        Only include measurements which begins at the provided datetime.
+
         :param datetime begin:
         :rtype: MeasurementQuery
         """
@@ -85,6 +112,9 @@ class MeasurementQuery(object):
 
     def begins_within(self, begin_range):
         """
+        Only include measurements which begins within the provided datetime
+        range (both begin and end are included).
+
         :param DateTimeRange begin_range:
         :rtype: MeasurementQuery
         """
@@ -95,6 +125,8 @@ class MeasurementQuery(object):
 
     def has_id(self, id):
         """
+        Only include the measurement with a specific ID.
+
         :param int id:
         :rtype: MeasurementQuery
         """
@@ -104,6 +136,9 @@ class MeasurementQuery(object):
 
     def has_gsrn(self, gsrn):
         """
+        Only include measurements which were measured by the MeteringPoint
+        identified with the provided GSRN number.
+
         :param str gsrn:
         :rtype: MeasurementQuery
         """
@@ -113,6 +148,9 @@ class MeasurementQuery(object):
 
     def has_any_gsrn(self, gsrn):
         """
+        Only include measurements which were measured by any of the
+        MeteringPoints identified with the provided GSRN numbers.
+
         :param list[str] gsrn:
         :rtype: MeasurementQuery
         """
@@ -122,6 +160,9 @@ class MeasurementQuery(object):
 
     def is_type(self, type):
         """
+        Only include measurements of the provided type,
+        ie. PRODUCTION or CONSUMPTION.
+
         :param MeasurementType type:
         :rtype: MeasurementQuery
         """
@@ -131,18 +172,25 @@ class MeasurementQuery(object):
 
     def is_production(self):
         """
+        Only include measurements of type PRODUCTION.
+
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.PRODUCTION)
 
     def is_consumption(self):
         """
+        Only include measurements of type CONSUMPTION.
+
         :rtype: MeasurementQuery
         """
         return self.is_type(MeasurementType.CONSUMPTION)
 
     def is_published(self, value=True):
         """
+        Only include measurements that has been published to the ledger,
+        ie. are publicly available.
+
         :param bool value:
         :rtype: MeasurementQuery
         """
@@ -150,17 +198,16 @@ class MeasurementQuery(object):
             Measurement.published == value,
         ))
 
-    def needs_ggo_issued(self):
-        """
-        :rtype: MeasurementQuery
-        """
-        q = self.q.filter(Ggo.id.is_(None))
-
-        return self.__class__(self.session, q) \
-            .is_production()
-
     def needs_resubmit_to_ledger(self):
         """
+        Only include measurements that needs to be resubmitted to the ledger.
+        These are the measurements that has been imported but,
+        for some reason, the ledger transaction has not completed.
+
+        These are defined by a certain period of time after they were
+        created, or last submitted to the ledger, without the transaction
+        completing.
+
         :rtype: MeasurementQuery
         """
         return self.__class__(self.session, self.q.filter(
@@ -178,8 +225,7 @@ class MeasurementQuery(object):
 
     def get_distinct_begins(self):
         """
-        Returns an iterable of all distinct Ggo.begin
-        as a result of this query.
+        Returns a list of all distinct Measurement.begin in the result set.
 
         :rtype: list[datetime]
         """
@@ -188,7 +234,7 @@ class MeasurementQuery(object):
 
     def get_first_measured_begin(self):
         """
-        TODO
+        Returns the first Measurement.begin in the result set.
 
         :rtype: datetime
         """
@@ -197,6 +243,8 @@ class MeasurementQuery(object):
 
     def get_last_measured_begin(self):
         """
+        Returns the last Measurement.begin in the result set.
+
         :rtype: datetime
         """
         return self.session.query(
@@ -204,6 +252,8 @@ class MeasurementQuery(object):
 
     def get_summary(self, resolution, grouping):
         """
+        Returns a summary of the result set.
+
         :param SummaryResolution resolution:
         :param list[str] grouping:
         :rtype: MeasurementSummary
@@ -213,7 +263,15 @@ class MeasurementQuery(object):
 
 class MeasurementSummary(object):
     """
-    TODO Describe
+    Implements a summary/aggregation of measurements.
+
+    Provided a MeasurementQuery, this class compiles together a list of
+    SummaryGroups, where each group is defined by the "grouping" parameter.
+    The aggregated data is based on the result set of the query provided.
+    It essentially works by wrapping a SQL "GROUP BY" statement.
+
+    The parameter "resolution" defined the returned data resolution.
+    Call .fill() before accessing .labels or .groups to fill gaps in data.
     """
 
     GROUPINGS = (
@@ -227,21 +285,6 @@ class MeasurementSummary(object):
         SummaryResolution.day: 'YYYY-MM-DD',
         SummaryResolution.month: 'YYYY-MM',
         SummaryResolution.year: 'YYYY',
-    }
-
-    RESOLUTIONS_PYTHON = {
-        SummaryResolution.hour: '%Y-%m-%d %H:00',
-        SummaryResolution.day: '%Y-%m-%d',
-        SummaryResolution.month: '%Y-%m',
-        SummaryResolution.year: '%Y',
-    }
-
-    LABEL_STEP = {
-        SummaryResolution.hour: relativedelta(hours=1),
-        SummaryResolution.day: relativedelta(days=1),
-        SummaryResolution.month: relativedelta(months=1),
-        SummaryResolution.year: relativedelta(years=1),
-        SummaryResolution.all: None,
     }
 
     ALL_TIME_LABEL = 'All-time'

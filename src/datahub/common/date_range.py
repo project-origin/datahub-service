@@ -5,6 +5,22 @@ from .models import SummaryResolution
 
 
 class LabelRange(object):
+    """
+    Generates an ordered list of labels each corresponding to a period
+    of time (defined by its begin, end, and the "resolution" parameter).
+
+    For example, provided the following inputs::
+
+        begin = datetime(2020, 1, 1, 0, 0, 0)
+        end = datetime(2020, 1, 3, 0, 0, 0)
+        resolution = SummaryResolution.day
+        labels = list(LabelRange(begin, end, resolution))
+
+    Results in the following list::
+
+        ['2020-01-01', '2020-01-02', '2020-01-03']
+
+    """
 
     RESOLUTIONS = {
         SummaryResolution.hour: '%Y-%m-%d %H:00',

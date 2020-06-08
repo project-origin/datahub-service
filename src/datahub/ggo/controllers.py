@@ -10,7 +10,14 @@ from .models import GetGgoListRequest, GetGgoListResponse
 
 class GetGgoList(Controller):
     """
-    TODO
+    Returns a list of GGO objects that have been issued to
+    a MeteringPoint identified by the provided GSRN number.
+    Can only select MeteringPoints which belongs to the user.
+
+    "begin" is the time at which the energy production began.
+    It usually have an end time which is one hour later,
+    but only the begin is filtered upon. It is possible to
+    filters GGOs on a range/period defined by a from- and to datetime.
     """
     Request = md.class_schema(GetGgoListRequest)
     Response = md.class_schema(GetGgoListResponse)

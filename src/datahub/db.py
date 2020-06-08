@@ -14,9 +14,9 @@ Session = scoped_session(factory)
 
 def make_session(*args, **kwargs):
     """
-    TODO
+    Create a new SQLAlchemy session.
 
-    :return:
+    :rtype: sqlalchemy.orm.Session
     """
     return Session(*args, **kwargs)
 

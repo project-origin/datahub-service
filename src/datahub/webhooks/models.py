@@ -12,7 +12,7 @@ class Event(Enum):
 
 class Subscription(ModelBase):
     """
-    Represents one used in the system who is able to authenticate.
+    Implementation of a single webhook event subscription.
     """
     __tablename__ = 'webhook_subscription'
 

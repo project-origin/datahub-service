@@ -8,10 +8,8 @@ from datahub.settings import ELOVERBLIK_SERVICE_URL, ELOVERBLIK_TOKEN, DEBUG
 
 from .models import (
     Scope,
-    Authorization,
     MeteringPoint,
     GetTokenResponse,
-    GetAuthorizationsResponse,
     GetMeteringPointsResponse,
     TimeSeriesResult,
     GetTimeSeriesResponse,
@@ -23,7 +21,7 @@ TOKEN_EXPIRE = 3600
 
 class EloverblikService(object):
     """
-    TODO
+    Interface for importing data from ElOverblik.
     """
     def invoke(self, f, token, path, response_schema):
         """
@@ -58,6 +56,9 @@ class EloverblikService(object):
 
     def get_token(self):
         """
+        Get a temporary access token, which can be used in subsequent
+        calls to the service.
+
         :rtype: str
         """
         with logger.tracer.span('Get from redis cache'):
@@ -79,21 +80,10 @@ class EloverblikService(object):
 
         return token
 
-    def get_authorizations(self):
-        """
-        :rtype: list[Authorization]
-        """
-        response = self.get(
-            token=self.get_token(),
-            path=f'/api/Authorization/Authorizations',
-            response_schema=md.class_schema(GetAuthorizationsResponse),
-        )
-
-        return response.result
-
     def get_meteringpoints(self, scope, identifier):
         """
-        :param str token:
+        Get a list of MeteringPoints.
+
         :param Scope scope:
         :param str identifier:
         :rtype: list[MeteringPoint]
@@ -108,6 +98,8 @@ class EloverblikService(object):
 
     def get_time_series(self, gsrn, date_from, date_to):
         """
+        Get a list of TimeSeries.
+
         :param str gsrn:
         :param datetime.date date_from:
         :param datetime.date date_to:

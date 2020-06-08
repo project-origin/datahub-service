@@ -19,7 +19,18 @@ from datahub.meteringpoints import MeasurementType
 
 class Measurement(ModelBase):
     """
-    TODO
+    Implementation of a single measurement that has been measured
+    by a MeteringPoint. It consists of a period of time (defined by its
+    begin) along with the amount of energy produced or consumed
+    in Wh (Watts per hour). The type of measurement (production or
+    consumption) depends on the MeteringPoint. Only one measurement can
+    exists per MeteringPoint per begin.
+
+    Measurements of type PRODUCTION also has a GGO issued to it.
+
+    NOTE REGARDING PUBLISHING:
+    Measurements (and their respective GGOs) are not publicly available
+    until they have been published to the ledger (the "published" property).
     """
     __tablename__ = 'measurement'
     __table_args__ = (
@@ -53,6 +64,9 @@ class Measurement(ModelBase):
     @property
     def sub(self):
         """
+        Returns the subject who owns the MeteringPoint which this
+        measurement belongs to (ie. user ID).
+
         :rtype: str
         """
         return self.meteringpoint.sub
@@ -60,6 +74,9 @@ class Measurement(ModelBase):
     @property
     def sector(self):
         """
+        Returns the sector (Price area) of the MeteringPoint which this
+        measurement belongs to.
+
         :rtype: str
         """
         return self.meteringpoint.sector
@@ -67,6 +84,9 @@ class Measurement(ModelBase):
     @property
     def technology_code(self):
         """
+        Returns the technology code of the MeteringPoint which this
+        measurement belongs to.
+
         :rtype: str
         """
         return self.meteringpoint.technology_code
@@ -74,6 +94,9 @@ class Measurement(ModelBase):
     @property
     def fuel_code(self):
         """
+        Returns the fuel code of the MeteringPoint which this
+        measurement belongs to.
+
         :rtype: str
         """
         return self.meteringpoint.fuel_code
@@ -81,6 +104,8 @@ class Measurement(ModelBase):
     @property
     def type(self):
         """
+        Returns the type og measurement, ie. PRODUCTION or CONSUMPTION.
+
         :rtype: MeasurementType
         """
         return self.meteringpoint.type
@@ -88,6 +113,8 @@ class Measurement(ModelBase):
     @property
     def key(self):
         """
+        Returns the ledger key for this measurement.
+
         :rtype: BIP32Key
         """
         # Minutes since epoch
@@ -98,19 +125,29 @@ class Measurement(ModelBase):
     @property
     def address(self):
         """
+        Returns the (unique) address this measurement has on the ledger.
+
         :rtype: str
         """
-        return ols.generate_address(ols.AddressPrefix.MEASUREMENT, self.key.PublicKey())
+        return ols.generate_address(
+            ols.AddressPrefix.MEASUREMENT, self.key.PublicKey())
 
     @property
     def settlement_address(self):
         """
+        Returns the (unique) address on the ledger to put settlements when
+        retiring GGOs to this measurement.
+
         :rtype: str
         """
-        return ols.generate_address(ols.AddressPrefix.SETTLEMENT, self.key.PublicKey())
+        return ols.generate_address(
+            ols.AddressPrefix.SETTLEMENT, self.key.PublicKey())
 
     def get_ledger_publishing_request(self):
         """
+        Returns the publishing request object used to publish the
+        GGO to the ledger.
+
         :rtype: PublishMeasurementRequest
         """
         if self.meteringpoint.type is MeasurementType.PRODUCTION:
@@ -141,6 +178,10 @@ class Measurement(ModelBase):
 
 @dataclass
 class MappedMeasurement:
+    """
+    A reflection of the Measurement class above, but supports JSON schema
+    serialization/deserialization using marshmallow/marshmallow-dataclass.
+    """
     address: str
     begin: datetime
     end: datetime
@@ -153,7 +194,7 @@ class MappedMeasurement:
 @dataclass
 class MeasurementFilters:
     """
-    TODO
+    Filters to filter on Measurements when using MeasurementQuery.
     """
     begin: datetime = field(default=None)
     begin_range: DateTimeRange = field(default=None, metadata=dict(data_key='beginRange'))

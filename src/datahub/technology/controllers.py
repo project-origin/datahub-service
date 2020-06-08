@@ -8,7 +8,7 @@ from .models import Technology, GetTechnologiesResponse
 
 class GetTechnologies(Controller):
     """
-    TODO
+    Returns a list of all Technology objects.
     """
     Response = md.class_schema(GetTechnologiesResponse)
 

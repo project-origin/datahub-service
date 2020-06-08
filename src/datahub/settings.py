@@ -86,13 +86,16 @@ REDIS_BACKEND_URL = '%s/%d' % (REDIS_URL, REDIS_BACKEND_DB)
 # -- Misc --------------------------------------------------------------------
 
 GGO_EXPIRE_TIME = timedelta(days=90)
+UNKNOWN_TECHNOLOGY_LABEL = 'Unknown'
+BATCH_RESUBMIT_AFTER_HOURS = 6
 
 AZURE_APP_INSIGHTS_CONN_STRING = os.environ.get(
     'AZURE_APP_INSIGHTS_CONN_STRING')
 
 # Used when debugging for importing test data
-FIRST_MEASUREMENT_TIME = os.environ.get('FIRST_MEASUREMENT_TIME')
-
-UNKNOWN_TECHNOLOGY_LABEL = 'Unknown'
-
-BATCH_RESUBMIT_AFTER_HOURS = 6
+if os.environ.get('FIRST_MEASUREMENT_TIME'):
+    FIRST_MEASUREMENT_TIME = datetime\
+        .strptime(os.environ['FIRST_MEASUREMENT_TIME'], '%Y-%m-%dT%H:%M:%SZ') \
+        .astimezone(timezone.utc)
+else:
+    FIRST_MEASUREMENT_TIME = None

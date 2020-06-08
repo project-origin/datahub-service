@@ -1,12 +1,11 @@
 import json
-
-import requests
 import hmac
+import requests
+import marshmallow_dataclass as md
 from hashlib import sha256
 from base64 import b64encode
-import marshmallow_dataclass as md
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from datahub import logger
 from datahub.settings import DEBUG, HMAC_HEADER

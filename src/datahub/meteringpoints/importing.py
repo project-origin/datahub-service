@@ -1,3 +1,5 @@
+from functools import partial
+
 from datahub import logger
 from datahub.db import atomic
 from datahub.services import eloverblik as e
@@ -7,29 +9,54 @@ from .queries import MeteringPointQuery
 from .models import MeteringPoint, MeasurementType
 
 
-class MeteringPointsImportController(object):
-    """
-    TODO
-    """
-    service = e.EloverblikService()
-    energtypes = EnergyTypeService()
+eloverblik_service = e.EloverblikService()
+energtype_service = EnergyTypeService()
 
-    def import_meteringpoints(self, sub):
+
+class MeteringPointImporter(object):
+    """
+    Helper class for importing MeteringPoints from ElOverblik.
+
+    Does necessary mapping between data, including fetching
+    technology- and fuel code from EnergyTypeService.
+
+    TODO move atomic transaction away from this class...
+    """
+
+    @atomic
+    def import_meteringpoints(self, sub, session):
         """
+        Imports all meteringpoints for the subject from ElOverblik.
+
         :param str sub:
+        :param sqlalchemy.orm.Session session:
         :rtype: list[MeteringPoint]
         """
         logger.info(f'Importing MeteringPoints from ElOverblik', extra={
             'subject': sub,
         })
 
-        imported_meteringpoints = self.service.get_meteringpoints(
+        # Import MeteringPoints from ElOverblik
+        imported_meteringpoints = eloverblik_service.get_meteringpoints(
             scope=e.Scope.CustomerKey,
             identifier=sub,
         )
 
-        mapped_meteringpoints = self.insert_to_db(
-            sub, imported_meteringpoints)
+        # Filter out GSRN numbers that already exists
+        filtered_meteringpoints = (
+            mp for mp in imported_meteringpoints
+            if not self.gsrn_exists(mp.gsrn, session)
+        )
+
+        # Map to MeteringPoint objects
+        mapped_meteringpoints = list(map(
+            partial(self.map_imported_meteringpoint, sub),
+            filtered_meteringpoints,
+        ))
+
+        # Insert to database
+        session.add_all(mapped_meteringpoints)
+        session.flush()
 
         logger.info(f'Imported {len(mapped_meteringpoints)} MeteringPoints from ElOverblik', extra={
             'subject': sub,
@@ -38,36 +65,31 @@ class MeteringPointsImportController(object):
 
         return mapped_meteringpoints
 
-    @atomic
-    def insert_to_db(self, sub, imported_meteringpoints, session):
+    def gsrn_exists(self, gsrn, session):
         """
-        :param str sub:
-        :param list[e.MeteringPoint] imported_meteringpoints:
-        :param Session session:
+        Check whether a GSRN number already exists (has been imported).
+
+        :param str gsrn:
+        :param sqlalchemy.orm.Session session:
+        :rtype: bool
         """
-        meteringpoints = []
+        count = MeteringPointQuery(session) \
+            .has_gsrn(gsrn) \
+            .count()
 
-        for i, imported_meteringpoint in enumerate(imported_meteringpoints):
-            count = MeteringPointQuery(session) \
-                .has_gsrn(imported_meteringpoint.gsrn) \
-                .count()
-
-            if count == 0:
-                meteringpoints.append(self.map_imported_meteringpoint(
-                    sub, imported_meteringpoint))
-
-        session.add_all(meteringpoints)
-
-        return meteringpoints
+        return count > 0
 
     def map_imported_meteringpoint(self, sub, imported_meteringpoint):
         """
+        Maps the MeteringPoint datatype returned by ElOverblikService to
+        a MeteringPoint object ready for database insertion.
+
         :param str sub:
         :param e.MeteringPoint imported_meteringpoint:
         :rtype: MeteringPoint
         """
-        technology_code, fuel_code = self.energtypes \
-            .get_energy_type(imported_meteringpoint.gsrn)
+        technology_code, fuel_code = self.get_technology(
+            imported_meteringpoint.gsrn)
 
         return MeteringPoint(
             sub=sub,
@@ -84,8 +106,22 @@ class MeteringPointsImportController(object):
             municipality_code=imported_meteringpoint.municipality_code,
         )
 
+    def get_technology(self, gsrn):
+        """
+        Fetches technology- and fuel code from EnergyTypeService
+        for a GSRN number.
+
+        :param str gsrn:
+        :returns: Tuple of (technology_code, fuel_code)
+        :rtype: (str, str)
+        """
+        return energtype_service.get_energy_type(gsrn)
+
     def get_type(self, imported_meteringpoint):
         """
+        Maps the type (production or consumption) returned by
+        ElOverblikService to the type required by Measurement class.
+
         :param e.MeteringPoint imported_meteringpoint:
         :rtype: MeasurementType
         """
@@ -98,6 +134,9 @@ class MeteringPointsImportController(object):
 
     def get_sector(self, imported_meteringpoint):
         """
+        Deduces the sector (price area) for a MeteringPoint based on the
+        data returned from ElOverblikService.
+
         :param e.MeteringPoint imported_meteringpoint:
         :rtype: str
         """

@@ -1,7 +1,10 @@
 """
-Resubmits unpublished measurements to the ledger. These are the measurements
-which has not been successfully submitted to the ledger for some reason,
-for instance if the ledger has been down for a period of time etc.
+Asynchronous tasks for re-submitting Measurements to the ledger.
+
+One entrypoint exists:
+
+    start_resubmit_measurements_pipeline()
+
 """
 from datahub import logger
 from datahub.db import inject_session
@@ -13,7 +16,7 @@ from .import_measurements import start_submit_measurement_pipeline
 
 def start_resubmit_measurements_pipeline():
     """
-    TODO
+    Starts a pipeline which resubmits unpublished measurements to the ledger.
     """
     resubmit_measurements \
         .s() \
@@ -35,6 +38,11 @@ def start_resubmit_measurements_pipeline():
 @inject_session
 def resubmit_measurements(session):
     """
+    Resubmits unpublished measurements to the ledger. These are the
+    measurements which has not been successfully submitted to the ledger
+    for some reason, for instance if the ledger has been down for a
+    period of time etc.
+
     :param Session session:
     """
     measurements = MeasurementQuery(session) \

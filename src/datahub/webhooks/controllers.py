@@ -10,7 +10,7 @@ from .models import SubscribeRequest, Event
 
 class Subscribe(Controller):
     """
-    TODO
+    Subscribe to a webhook event.
     """
     Request = md.class_schema(SubscribeRequest)
 

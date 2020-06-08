@@ -1,5 +1,16 @@
 """
-TODO write this
+Asynchronous tasks for importing Measurements from ElOverblik.
+
+Multiple entrypoints exists depending on the use case:
+
+    1) Function start_import_measurements_pipeline() starts a pipeline which
+       imports measurements for all MeteringPoints in the database
+
+    2) Function start_import_measurements_pipeline_for() starts a pipeline
+       which imports measurements for a single MeteringPoint.
+
+    3) Function start_submit_measurement_pipeline() starts a pipelines which
+       submits a single measurement to the ledger.
 """
 import origin_ledger_sdk as ols
 from celery import group, chain
@@ -8,7 +19,7 @@ from datahub import logger
 from datahub.db import atomic, inject_session
 from datahub.tasks import celery_app
 from datahub.webhooks import WebhookService
-from datahub.meteringpoints import MeteringPointQuery, MeasurementType
+from datahub.meteringpoints import MeteringPointQuery, MeasurementType, MeteringPoint
 from datahub.services.eloverblik import EloverblikService
 from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
 from datahub.measurements import (
@@ -32,7 +43,8 @@ ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
 
 def start_import_measurements_pipeline():
     """
-    Starts a pipeline that imports [new] measurements for all meteringpoints.
+    Starts a pipeline which imports measurements for all
+    MeteringPoints in the database.
     """
     get_distinct_gsrn \
         .s() \
@@ -41,7 +53,7 @@ def start_import_measurements_pipeline():
 
 def start_import_measurements_pipeline_for(subject, gsrn):
     """
-    Starts a pipeline that imports measurements for a specific meteringpoint.
+    Starts a pipeline which imports measurements for a single MeteringPoint.
 
     :param str subject:
     :param str gsrn:
@@ -53,9 +65,31 @@ def start_import_measurements_pipeline_for(subject, gsrn):
 
 def start_submit_measurement_pipeline(measurement, meteringpoint):
     """
-    Starts a pipeline that submits a single measurement to the ledger.
+    Starts a pipelines which submits a single measurement to the ledger.
+
+        Step 1: submit_to_ledger() submits the Batch to the ledger,
+                and returns the Handle, which is passed on to step 2
+
+        Step 2: poll_batch_status() polls the ledger for Batch status
+                until it has been completed/declined, and returns whether
+                or not the batch was submitted successfully
+
+        Step 3: update_measurement_status() updates the Measurement's
+                "published" property
+
+        Step 4: invoke_webhook() invokes the "GGO ISSUED" webhook ONLY
+                if the Measurement has an associated GGO issued (production)
 
     :param Measurement measurement:
+    :param MeteringPoint meteringpoint:
+    """
+    build_submit_measurement_pipeline(measurement, meteringpoint) \
+        .apply_async()
+
+
+def build_submit_measurement_pipeline(measurement, meteringpoint):
+    """
+    Builds and returns TODO
     """
     tasks = [
         # Submit Batch with Measurement (and Ggo if PRODUCTION)
@@ -71,7 +105,7 @@ def start_submit_measurement_pipeline(measurement, meteringpoint):
         ),
 
         # Update Measurement.published status attribute
-        update_measurement_status.si(
+        update_measurement_status.s(
             subject=meteringpoint.sub,
             measurement_id=measurement.id,
         ),
@@ -85,7 +119,7 @@ def start_submit_measurement_pipeline(measurement, meteringpoint):
             measurement_id=measurement.id,
         ))
 
-    chain(*tasks).apply_async()
+    return chain(*tasks)
 
 
 @celery_app.task(
@@ -103,6 +137,9 @@ def start_submit_measurement_pipeline(measurement, meteringpoint):
 @inject_session
 def get_distinct_gsrn(session):
     """
+    Fetches all distinct GSRN numbers from the database, and starts a
+    import_measurements() pipelines for each of them.
+
     :param Session session:
     """
     meteringpoints = MeteringPointQuery(session).all()
@@ -124,7 +161,8 @@ def get_distinct_gsrn(session):
     queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
-    max_retries=5,
+    retry_backoff_max=RETRY_MAX_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Importing measurements for GSRN: %(gsrn)s',
@@ -134,17 +172,24 @@ def get_distinct_gsrn(session):
 @inject_session
 def import_measurements(subject, gsrn, session):
     """
+    Imports measurements for a single MeteringPoint, and starts a
+    start_submit_measurement_pipeline() pipeline for each of the newly
+    imported measurements.
+
     :param str subject:
     :param str gsrn:
     :param Session session:
     """
+
     meteringpoint = MeteringPointQuery(session) \
         .has_gsrn(gsrn) \
         .one()
 
-    measurements = importer.import_measurements_for(meteringpoint)
+    @atomic
+    def __import_measurements(session):
+        return importer.import_measurements_for(meteringpoint, session)
 
-    for measurement in measurements:
+    for measurement in __import_measurements():
         start_submit_measurement_pipeline(measurement, meteringpoint)
 
 
@@ -164,6 +209,10 @@ def import_measurements(subject, gsrn, session):
 @atomic
 def submit_to_ledger(subject, measurement_id, session):
     """
+    Submits a single measurement (and its associated GGO, if any) to the
+    ledger. Returns the ledger Handle, which is passed on to the next chained
+    task (poll_batch_status).
+
     :param str subject:
     :param int measurement_id:
     :param Session session:
@@ -174,6 +223,7 @@ def submit_to_ledger(subject, measurement_id, session):
         .one()
 
     # Build ledger Batch
+    # TODO Move this to Measurement.build_batch() ?
     batch = ols.Batch(measurement.meteringpoint.key.PrivateKey())
     batch.add_request(measurement.get_ledger_publishing_request())
     if measurement.ggo:
@@ -228,9 +278,13 @@ def submit_to_ledger(subject, measurement_id, session):
 )
 def poll_batch_status(handle, subject, measurement_id):
     """
+    Polls the ledger for Batch status until it has been completed/declined.
+    The param "handle" is passed on by the previous task (submit_to_ledger).
+
     :param str handle:
     :param str subject:
     :param int measurement_id:
+    :rtype: bool
     """
     with logger.tracer.span('GetBatchStatus'):
         response = ledger.get_batch_status(handle)
@@ -242,6 +296,7 @@ def poll_batch_status(handle, subject, measurement_id):
             'pipeline': 'import_measurements',
             'task': 'submit_to_ledger',
         })
+        return True
     elif response.status == ols.BatchStatus.INVALID:
         logger.error('Batch submit FAILED: Invalid', extra={
             'subject': subject,
@@ -249,6 +304,7 @@ def poll_batch_status(handle, subject, measurement_id):
             'pipeline': 'import_measurements',
             'task': 'submit_to_ledger',
         })
+        return False
     elif response.status == ols.BatchStatus.UNKNOWN:
         logger.error('Batch submit UNKNOWN: Retrying', extra={
             'subject': subject,
@@ -274,8 +330,12 @@ def poll_batch_status(handle, subject, measurement_id):
     task='update_measurement_status',
 )
 @atomic
-def update_measurement_status(subject, measurement_id, session):
+def update_measurement_status(published, subject, measurement_id, session):
     """
+    Updates the Measurement's published property. The param "published"
+    is passed on by the previous task (poll_batch_status).
+
+    :param bool published:
     :param str subject:
     :param int measurement_id:
     :param Session session:
@@ -284,7 +344,7 @@ def update_measurement_status(subject, measurement_id, session):
         .has_id(measurement_id) \
         .one()
 
-    measurement.published = True
+    measurement.published = measurement.published or published
 
 
 @celery_app.task(
@@ -302,6 +362,8 @@ def update_measurement_status(subject, measurement_id, session):
 @inject_session
 def invoke_webhook(subject, gsrn, measurement_id, session):
     """
+    invokes the "GGO ISSUED" webhook.
+
     :param str subject:
     :param str gsrn:
     :param int measurement_id:
