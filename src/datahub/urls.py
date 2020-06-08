@@ -42,9 +42,7 @@ urls = (
     ('/disclosure/delete', disclosure.DeleteDisclosure()),
 
     # Webhooks
-    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(
-        Event.ON_METERINGPOINTS_AVAILABLE)),
-    ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(
-        Event.ON_GGOS_ISSUED)),
+    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(Event.ON_METERINGPOINTS_AVAILABLE)),
+    ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(Event.ON_GGOS_ISSUED)),
 
 )
