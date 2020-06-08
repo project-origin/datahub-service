@@ -22,7 +22,7 @@ class GetMeteringPoints(Controller):
     def handle_request(self, token, session):
         """
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeteringPointsResponse
         """
         meteringpoints = MeteringPointQuery(session) \
@@ -71,7 +71,7 @@ class SetKey(Controller):
         :param str sub:
         :param str gsrn:
         :param str key:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         """
         meteringpoint = MeteringPointQuery(session) \
             .belongs_to(sub) \

@@ -39,7 +39,7 @@ class GetMeasurement(Controller):
         """
         :param GetMeasurementRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementResponse
         """
         measurement = MeasurementQuery(session) \
@@ -73,7 +73,7 @@ class GetMeasurementList(Controller):
         """
         :param GetMeasurementListRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementListResponse
         """
         query = MeasurementQuery(session) \
@@ -111,7 +111,7 @@ class GetBeginRange(Controller):
         """
         :param GetBeginRangeRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetBeginRangeResponse
         """
         query = MeasurementQuery(session) \
@@ -144,7 +144,7 @@ class GetMeasurementSummary(Controller):
         """
         :param GetMeasurementSummaryRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementSummaryResponse
         """
         summary = MeasurementQuery(session) \

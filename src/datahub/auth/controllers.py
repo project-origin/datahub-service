@@ -66,7 +66,7 @@ class OnboardingCallback(Controller):
     def handle_request(self, request, session):
         """
         :param OnboardingCallbackRequest request:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: flask.Response
         """
         redis_key = 'onboarding-return-url-%s' % request.sub

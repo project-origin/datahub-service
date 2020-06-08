@@ -140,7 +140,7 @@ def get_distinct_gsrn(session):
     Fetches all distinct GSRN numbers from the database, and starts a
     import_measurements() pipelines for each of them.
 
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     """
     meteringpoints = MeteringPointQuery(session).all()
 
@@ -178,7 +178,7 @@ def import_measurements(subject, gsrn, session):
 
     :param str subject:
     :param str gsrn:
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     """
 
     meteringpoint = MeteringPointQuery(session) \
@@ -215,7 +215,7 @@ def submit_to_ledger(subject, measurement_id, session):
 
     :param str subject:
     :param int measurement_id:
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     :rtype: str
     """
     measurement = MeasurementQuery(session) \
@@ -338,7 +338,7 @@ def update_measurement_status(published, subject, measurement_id, session):
     :param bool published:
     :param str subject:
     :param int measurement_id:
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     """
     measurement = MeasurementQuery(session) \
         .has_id(measurement_id) \
@@ -367,7 +367,7 @@ def invoke_webhook(subject, gsrn, measurement_id, session):
     :param str subject:
     :param str gsrn:
     :param int measurement_id:
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     """
     measurement = MeasurementQuery(session) \
         .has_id(measurement_id) \

@@ -43,7 +43,7 @@ def resubmit_measurements(session):
     for some reason, for instance if the ledger has been down for a
     period of time etc.
 
-    :param Session session:
+    :param sqlalchemy.orm.Session session:
     """
     measurements = MeasurementQuery(session) \
         .needs_resubmit_to_ledger() \

@@ -15,7 +15,7 @@ class GetTechnologies(Controller):
     @inject_session
     def handle_request(self, session):
         """
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetTechnologiesResponse
         """
         return GetTechnologiesResponse(
