@@ -4,6 +4,8 @@ from itertools import groupby
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func
 
+from datahub.settings import UNKNOWN_TECHNOLOGY_LABEL
+from datahub.technology import Technology
 from datahub.measurements import Measurement
 from datahub.common import (
     DateTimeRange,
@@ -13,8 +15,6 @@ from datahub.common import (
 )
 
 from .models import DisclosureRetiredGgo, DisclosureSettlement, Disclosure
-from ..settings import UNKNOWN_TECHNOLOGY_LABEL
-from ..technology import Technology
 
 
 class DisclosureRetiredGgoQuery(object):
