@@ -1,6 +1,6 @@
 ![alt text](doc/logo.png)
 
-# Project Origin DataHub Service
+# Project Origin DataHubService
 
 This is the repository for Project Origin's DataHubService.
 
