@@ -8,6 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from datahub.db import ModelBase
+from datahub.ggo import Ggo
+from datahub.ggo.queries import GgoQuery
 from datahub.meteringpoints import MeteringPoint, MeasurementType
 from datahub.services.eloverblik import GetTimeSeriesResponse
 from datahub.measurements import (
@@ -49,6 +51,10 @@ existing_measurement = Measurement(
     end=begin + timedelta(hours=1),
     amount=100,
     published=True,
+    ggo=Ggo(
+        issue_time=datetime.now(),
+        expire_time=datetime.now(),
+    )
 )
 
 
@@ -214,7 +220,11 @@ def test__MeasurementImportController__integration(eloverblik_service, session):
     assert MeasurementQuery(session).has_gsrn(gsrn1).count() == 624
     assert MeasurementQuery(session).has_gsrn(gsrn1).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 5, 23, 0, tzinfo=timezone.utc)
     assert MeasurementQuery(session).has_gsrn(gsrn1).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
+    assert GgoQuery(session).has_gsrn(gsrn1).count() == 624
+    assert all(m.ggo is not None for m in MeasurementQuery(session).has_gsrn(gsrn1))
 
     assert MeasurementQuery(session).has_gsrn(gsrn2).count() == 743
     assert MeasurementQuery(session).has_gsrn(gsrn2).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert MeasurementQuery(session).has_gsrn(gsrn2).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
+    assert GgoQuery(session).has_gsrn(gsrn2).count() == 0
+    assert all(m.ggo is None for m in MeasurementQuery(session).has_gsrn(gsrn2))
