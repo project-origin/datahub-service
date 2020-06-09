@@ -8,6 +8,7 @@ This service is responsible for:
 
 - Importing metering points and measurement data from ElOverblik (DataHub)
 - Issuing of GGOs
+- Publishing measurements and issuing GGOs on to the blockchain ledger
 - Generating and storing publicly disclosed datasets
 - Mapping from technology- and fuel-code to a technology label
 
