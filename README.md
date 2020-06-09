@@ -2,8 +2,14 @@
 
 # Project Origin DataHub Service
 
-This is the repository for Project Origin's DataHubService. This service is responsible for
-importing metering points and measurement data from ElOverblik (DataHub), and issuing of GGOs.
+This is the repository for Project Origin's DataHubService.
+
+This service is responsible for:
+
+- Importing metering points and measurement data from ElOverblik (DataHub)
+- Issuing of GGOs
+- Generating and storing publicly disclosed datasets
+- Mapping from technology- and fuel-code to a technology label
 
 
 ## Installation and running locally
@@ -17,13 +23,14 @@ The following sections describes how to install and run the project locally for 
 - Pip
 - Pipenv
 - A PostgreSQL database
+- A Unix/Linux machine
 
 ### First time installation
 
 
 Initially, make sure to define necessary environment variables (listed below).
 You can define them in the .env file in the root of the project
-([more details in this here](https://pipenv-fork.readthedocs.io/en/latest/advanced.html#automatic-loading-of-env)).
+([more details on this here](https://pipenv-fork.readthedocs.io/en/latest/advanced.html#automatic-loading-of-env)).
 
 Also, make sure to upgrade your system packages for good measure:
    
@@ -56,7 +63,7 @@ Run unit- and integration tests:
 
 Name | Description | Example
 :--- | :--- | :--- |
-`SERVICE_NAME` | Name of this service | `ExampleBackend`
+`SERVICE_NAME` | Name of this service | `DataHubService`
 `DEBUG` | Whether or not to enable debugging mode (off by default) | `0` or `1`
 `SECRET` | Application secret for misc. operations | `foobar`
 `CORS_ORIGINS` | Allowed CORS origins | `http://www.example.com`
@@ -96,7 +103,7 @@ Name | Description | Example
 `FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
 `LAST_MEASUREMENT_TIME` | Set a date to end pulling data from | `2021-09-01T00:00:00Z`
 
-# Building container images
+## Building container images
 
 Web API:
 
