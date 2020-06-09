@@ -97,6 +97,39 @@ class MeasurementImportController(object):
         """
         begin = self.get_begin(meteringpoint, session)
         end = self.get_end()
+        measurements = self.get_measurements(
+            meteringpoint, begin, end, session)
+
+        # Save measurements to database
+        session.add_all(measurements)
+
+        # Issue GGOs if necessary
+        if meteringpoint.is_producer():
+            session.add_all((
+                self.issue_ggo_for(measurement)
+                for measurement in measurements
+            ))
+
+        session.flush()
+
+        logger.info(f'Imported {len(measurements)} measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
+            'subject': meteringpoint.sub,
+            'gsrn': meteringpoint.gsrn,
+            'type': meteringpoint.type.value,
+            'begin': str(begin),
+            'end': str(end),
+        })
+
+        return measurements
+
+    def get_measurements(self, meteringpoint, begin, end, session):
+        """
+        Imports and filters measurements
+
+        :param MeteringPoint meteringpoint:
+        :param sqlalchemy.orm.Session session:
+        :rtype: list[Measurement]
+        """
 
         logger.info(f'Importing measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
             'subject': meteringpoint.sub,
@@ -111,32 +144,10 @@ class MeasurementImportController(object):
             meteringpoint.gsrn, begin, end)
 
         # Filter out measurements that already exists
-        filtered_measurements = [
+        return [
             measurement for measurement in imported_measurements
             if not self.measurement_exists(measurement, session)
         ]
-
-        # Save measurements to database
-        session.add_all(filtered_measurements)
-
-        # Issue GGOs if necessary
-        if meteringpoint.is_producer():
-            session.add_all((
-                self.issue_ggo_for(measurement)
-                for measurement in filtered_measurements
-            ))
-
-        session.flush()
-
-        logger.info(f'Imported {len(filtered_measurements)} measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
-            'subject': meteringpoint.sub,
-            'gsrn': meteringpoint.gsrn,
-            'type': meteringpoint.type.value,
-            'begin': str(begin),
-            'end': str(end),
-        })
-
-        return filtered_measurements
 
     def get_begin(self, meteringpoint, session):
         """
@@ -156,21 +167,16 @@ class MeasurementImportController(object):
             return FIRST_MEASUREMENT_TIME
         else:
             # From the 1st of the month prior to now
-            return (datetime.now(tz=timezone.utc) - relativedelta(months=1)) \
-                .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    def get_latest_begin(self, meteringpoint, session):
+            return self.get_default_begin()
 
     def get_end(self):
         """
         :rtype: datetime
         """
         if LAST_MEASUREMENT_TIME:
-            return LAST_MEASUREMENT_TIME
+            return min(self.get_default_end(), LAST_MEASUREMENT_TIME)
         else:
-            return datetime \
-                .fromordinal(date.today().toordinal()) \
-                .astimezone(timezone.utc)
+            return self.get_default_end()
 
     def issue_ggo_for(self, measurement):
         """
@@ -195,3 +201,22 @@ class MeasurementImportController(object):
             .count()
 
         return count > 0
+
+    def get_default_begin(self):
+        """
+        Returns the 1st of the month prior to now
+
+        :rtype: datetime
+        """
+        return (datetime.now(tz=timezone.utc) - relativedelta(months=1)) \
+            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def get_default_end(self):
+        """
+        Returns today (NOW) at 00:00:00
+
+        :rtype: datetime
+        """
+        return datetime \
+            .fromordinal(date.today().toordinal()) \
+            .astimezone(timezone.utc)
