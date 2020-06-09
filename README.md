@@ -23,7 +23,8 @@ The following sections describes how to install and run the project locally for 
 - Python 3.7
 - Pip
 - Pipenv
-- A PostgreSQL database
+- A PostgreSQL server with one database
+- A Redis server with tree databases
 - A Unix/Linux machine
 
 ### First time installation
@@ -117,3 +118,20 @@ Worker:
 Worker Beat:
 
     sudo docker build -f Dockerfile.beat -t datahub-service-beat:v1 .
+
+
+# 3rd party libraries
+
+This project uses the following 3rd party libraries:
+
+- [Flask](https://flask.palletsprojects.com/en/1.1.x/): HTTP framework
+- [SQLAlchemy](https://www.sqlalchemy.org/): Database ORM
+- [Alembic](https://alembic.sqlalchemy.org/en/latest/): Database migrations and revisioning
+- [Marshmallow](https://marshmallow.readthedocs.io/en/stable/): JSON serialization/deserialization and validation
+- [Celery](https://docs.celeryproject.org/): Asynchronous tasks
+- [Redis](https://pypi.org/project/redis/): Celery backend + caching
+- [OpenCensus](https://github.com/census-instrumentation/opencensus-python): Logging and tracing
+- [Authlib](https://docs.authlib.org): OAuth2 implementation
+- [Origin-Ledger-SDK](https://pypi.org/project/Origin-Ledger-SDK/): Interface with the blockchain ledger
+- [bip32utils](https://github.com/lyndsysimon/bip32utils/): Generating block keys for the ledger
+- [pytest](https://docs.pytest.org/): Testing
