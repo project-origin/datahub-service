@@ -31,22 +31,41 @@ class EloverblikService(object):
         :param Schema response_schema:
         :rtype obj:
         """
-        response = f(
-            url='%s%s' % (ELOVERBLIK_SERVICE_URL, path),
-            headers={
-                'Authorization': f'Bearer {token}',
-                'Content-type': 'application/json',
-                'accept': 'application/json',
-            },
-            verify=not DEBUG,
-        )
+        url = '%s%s' % (ELOVERBLIK_SERVICE_URL, path)
 
-        if response.status_code != 200:
-            raise Exception('%s %d\n\n%s\n\n' % (path, response.status_code, response.content))
+        try:
+            response = f(
+                url='%s%s' % (ELOVERBLIK_SERVICE_URL, path),
+                verify=not DEBUG,
+                headers={
+                    'Authorization': f'Bearer {token}',
+                    'Content-type': 'application/json',
+                    'accept': 'application/json',
+                },
+            )
 
-        response_json = response.json()
+            if response.status_code != 200:
+                raise Exception((
+                    'Invoking ElOverblik resulted status_code != 200: '
+                    '%s %d\n\n%s\n\n'
+                ) % (url, response.status_code, response.content))
+        except:
+            logger.exception('Invoking ElOverblik resulted in an exception', extra={
+                'url': url,
+            })
+            raise
 
-        return response_schema().load(response_json)
+        try:
+            response_json = response.json()
+            response_model = response_schema().load(response_json)
+        except:
+            logger.exception('Failed to convert ElOverblik JSON into model using the provided schema', extra={
+                'url': url,
+                'content': response.content,
+            })
+            raise
+
+        return response_model
 
     def get(self, *args, **kwargs):
         return self.invoke(requests.get, *args, **kwargs)
