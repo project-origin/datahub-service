@@ -159,6 +159,8 @@ class MeasurementImportController(object):
             return (datetime.now(tz=timezone.utc) - relativedelta(months=1)) \
                 .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+    def get_latest_begin(self, meteringpoint, session):
+
     def get_end(self):
         """
         :rtype: datetime
