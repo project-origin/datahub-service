@@ -50,7 +50,7 @@ class MeasurementImporter(object):
         )
 
         # Convert the imported documents to Measurement objects
-        imported_measurements = list(self.flattern_time_series(imported_time_series))
+        imported_measurements = self.flattern_time_series(imported_time_series)
 
         return (
             m for m in imported_measurements
