@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 
 from datahub.db import ModelBase
 from datahub.common import DateTimeRange
-from datahub.meteringpoints import MeteringPoint
 
 
 # -- Database models ---------------------------------------------------------
@@ -41,7 +40,7 @@ class Ggo(ModelBase):
         """
         Returns the MeteringPoint which this GGO was issued to.
 
-        :rtype: MeteringPoint
+        :rtype: datahub.meteringpoints.MeteringPoint
         """
         return self.measurement.meteringpoint
 
