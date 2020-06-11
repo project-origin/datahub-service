@@ -12,29 +12,28 @@ resources:
 - repo: self
 
 variables:
-  imageName: 'projectorigin/datahub-service'
+  releaseName: 'datahub-service'
+  imageName: 'projectorigin/$(releaseName)'
+
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
     kubeCon: 'kubecon-eloprindelse-prod'
-    tag: '$(Build.BuildId)'
     namespace: 'eloprindelse'
+    tag: '$(Build.BuildId)'
   ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
     kubeCon: 'test-kube-con'
-    tag: '$(Build.BuildId)'
     namespace: 'test-project-origin'
+    tag: 'test.$(Build.BuildId)'
   ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
     kubeCon: 'dev-kube-con'
-    tag: 'dev.$(Build.BuildId)'
     namespace: 'dev-project-origin'
+    tag: 'canary'
+
+pool:
+  vmImage: 'ubuntu-latest'
 
 jobs:  
-  - job: build_deploy
-    displayName: Build and Deploy
-    pool:
-      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-        name: eloprindelse-prod
-      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
-        vmImage: 'ubuntu-latest'
-
+  - job: build_and_release
+    displayName: Build and Release
     steps:
       - task: Docker@2
         displayName: Build docker image
@@ -42,9 +41,16 @@ jobs:
           command: build
           repository: $(imageName)
           Dockerfile: Dockerfile
-          tags: |
-            latest
-            $(tag)
+          tags: $(tag)
+      
+      - task: Docker@2
+        displayName: Build docker latest image
+        condition: eq(variables['Build.SourceBranchName'], 'master')
+        inputs:
+          command: build
+          repository: $(imageName)
+          Dockerfile: Dockerfile
+          tags: latest
 
       - task: Docker@2
         displayName: Push image
@@ -52,10 +58,22 @@ jobs:
           command: push
           repository: $(imageName)
           containerRegistry: dockerHub
-          tags: |
-            latest
-            $(tag)
+          tags: $(tag)
+          
+      - task: Docker@2
+        displayName: Push latest image
+        condition: eq(variables['Build.SourceBranchName'], 'master')
+        inputs:
+          command: push
+          repository: $(imageName)
+          containerRegistry: dockerHub
+          tags: latest
 
+  - job: deploy
+    displayName: Deploy
+    dependsOn: build_and_release
+    condition: succeeded()
+    steps:
       - task: HelmDeploy@0
         displayName: Helm upgrade
         inputs:
@@ -65,7 +83,22 @@ jobs:
           command: upgrade
           chartType: filepath
           chartPath: ./chart
-          releaseName: datahub-service
+          releaseName: $(releaseName)
           overrideValues: tag=$(tag)
           install: true
+          waitForExecution: true
+
+  - job: rollback
+    displayName: Rollback
+    dependsOn: deploy
+    condition: and(failed('deploy'), ne(variables['Build.SourceBranchName'], 'develop'))
+    steps:
+      - task: HelmDeploy@0
+        displayName: Helm rollback
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceConnection: $(kubeCon)
+          namespace: $(namespace)
+          command: rollback
+          releaseName: $(releaseName)
           waitForExecution: true
