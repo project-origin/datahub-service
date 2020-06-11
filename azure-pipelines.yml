@@ -93,7 +93,7 @@ jobs:
           chartType: filepath
           chartPath: ./chart
           releaseName: $(releaseName)
-          overrideValues: tag='$(tag)'
+          overrideValues: tag=$(tag)
           install: true
           waitForExecution: true
 
