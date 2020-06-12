@@ -312,9 +312,12 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
         logger.exception('Failed to submit batch to ledger', extra=__log_extra)
         raise task.retry(exc=e)
     except ols.LedgerException as e:
-        if e.code == 31:
-            logger.info(f'Ledger queue is full', extra=__log_extra)
-            raise task.retry(exc=e)  # Queue is full
+        if e.code in (15, 17, 18):
+            logger.exception(f'Ledger validator error (code {e.code}), retrying...', extra=__log_extra)
+            raise task.retry(exc=e)
+        elif e.code == 31:
+            logger.info(f'Ledger queue is full, retrying...', extra=__log_extra)
+            raise task.retry(exc=e)
         else:
             raise
 
