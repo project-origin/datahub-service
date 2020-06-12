@@ -6,7 +6,7 @@ from .meteringpoints import controllers as meteringpoints
 from .disclosure import controllers as disclosure
 from .webhooks import controllers as webhooks
 from .meteringpoints import MeasurementType
-from .webhooks import Event
+from .webhooks import WebhookEvent
 
 
 urls = (
@@ -42,7 +42,7 @@ urls = (
     ('/disclosure/delete', disclosure.DeleteDisclosure()),
 
     # Webhooks
-    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(Event.ON_METERINGPOINTS_AVAILABLE)),
-    ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(Event.ON_GGOS_ISSUED)),
+    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
+    ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(WebhookEvent.ON_GGOS_ISSUED)),
 
 )

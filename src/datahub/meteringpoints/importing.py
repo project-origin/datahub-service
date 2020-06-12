@@ -23,7 +23,6 @@ class MeteringPointImporter(object):
     TODO move atomic transaction away from this class...
     """
 
-    @atomic
     def import_meteringpoints(self, sub, session):
         """
         Imports all meteringpoints for the subject from ElOverblik.
@@ -88,13 +87,18 @@ class MeteringPointImporter(object):
         :param e.MeteringPoint imported_meteringpoint:
         :rtype: MeteringPoint
         """
-        technology_code, fuel_code = self.get_technology(
-            imported_meteringpoint.gsrn)
+        type = self.get_type(imported_meteringpoint)
+
+        if type is MeasurementType.PRODUCTION:
+            technology_code, fuel_code = self.get_technology(
+                imported_meteringpoint.gsrn)
+        else:
+            technology_code, fuel_code = None, None
 
         return MeteringPoint(
             sub=sub,
             gsrn=imported_meteringpoint.gsrn,
-            type=self.get_type(imported_meteringpoint),
+            type=type,
             sector=self.get_sector(imported_meteringpoint),
             technology_code=technology_code,
             fuel_code=fuel_code,

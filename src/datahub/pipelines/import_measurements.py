@@ -14,14 +14,24 @@ Multiple entrypoints exists depending on the use case:
 """
 import origin_ledger_sdk as ols
 from celery import group, chain
+from sqlalchemy import orm
 
 from datahub import logger
-from datahub.db import atomic, inject_session
 from datahub.tasks import celery_app
-from datahub.webhooks import WebhookService
-from datahub.meteringpoints import MeteringPointQuery, MeasurementType, MeteringPoint
+from datahub.db import atomic, inject_session
 from datahub.services.eloverblik import EloverblikService
 from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
+from datahub.meteringpoints import (
+    MeteringPointQuery,
+    MeasurementType,
+    MeteringPoint,
+)
+from datahub.webhooks import (
+    WebhookEvent,
+    WebhookService,
+    WebhookError,
+    WebhookConnectionError,
+)
 from datahub.measurements import (
     Measurement,
     MeasurementQuery,
@@ -30,8 +40,11 @@ from datahub.measurements import (
 
 
 # Settings
-RETRY_MAX_DELAY = 60
-MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / RETRY_MAX_DELAY
+SUBMIT_RETRY_DELAY = 20
+SUBMIT_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / SUBMIT_RETRY_DELAY
+
+POLL_RETRY_DELAY = 10
+POLL_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / POLL_RETRY_DELAY
 
 
 # Services
@@ -63,7 +76,7 @@ def start_import_measurements_pipeline_for(subject, gsrn):
         .apply_async()
 
 
-def start_submit_measurement_pipeline(measurement, meteringpoint):
+def start_submit_measurement_pipeline(measurement, meteringpoint, session):
     """
     Starts a pipelines which submits a single measurement to the ledger.
 
@@ -82,52 +95,71 @@ def start_submit_measurement_pipeline(measurement, meteringpoint):
 
     :param Measurement measurement:
     :param MeteringPoint meteringpoint:
+    :param sqlalchemy.orm.Session session:
     """
-    build_submit_measurement_pipeline(measurement, meteringpoint) \
+    build_submit_measurement_pipeline(measurement, meteringpoint, session) \
         .apply_async()
 
 
-def build_submit_measurement_pipeline(measurement, meteringpoint):
+def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     """
     Builds and returns TODO
+
+    :param Measurement measurement:
+    :param MeteringPoint meteringpoint:
+    :param sqlalchemy.orm.Session session:
     """
     tasks = [
         # Submit Batch with Measurement (and Ggo if PRODUCTION)
         submit_to_ledger.si(
             subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
             measurement_id=measurement.id,
         ),
 
         # Poll for Batch status
         poll_batch_status.s(
             subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
             measurement_id=measurement.id,
         ),
 
         # Update Measurement.published status attribute
-        update_measurement_status.s(
+        update_measurement_status.si(
             subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
             measurement_id=measurement.id,
         ),
     ]
 
     # If PRODUCTION, also invoke OnGgoIssued webhook
     if meteringpoint.type is MeasurementType.PRODUCTION:
-        tasks.append(invoke_webhook.si(
+        subscriptions = webhook.get_subscriptions(
+            event=WebhookEvent.ON_GGOS_ISSUED,
             subject=meteringpoint.sub,
-            gsrn=meteringpoint.gsrn,
-            measurement_id=measurement.id,
-        ))
+            session=session,
+        )
+
+        if subscriptions:
+            tasks.append(group(
+                invoke_webhook.si(
+                    subject=meteringpoint.sub,
+                    gsrn=meteringpoint.gsrn,
+                    measurement_id=measurement.id,
+                    subscription_id=subscription.id,
+                )
+                for subscription in subscriptions
+            ))
 
     return chain(*tasks)
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.get_distinct_gsrn',
     queue='import-measurements',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    max_retries=5,
+    default_retry_delay=5,
+    max_retries=20,
 )
 @logger.wrap_task(
     title='Getting distinct GSRN numbers for importing measurements',
@@ -135,14 +167,23 @@ def build_submit_measurement_pipeline(measurement, meteringpoint):
     task='get_distinct_gsrn',
 )
 @inject_session
-def get_distinct_gsrn(session):
+def get_distinct_gsrn(task, session):
     """
     Fetches all distinct GSRN numbers from the database, and starts a
     import_measurements() pipelines for each of them.
 
     :param sqlalchemy.orm.Session session:
     """
-    meteringpoints = MeteringPointQuery(session).all()
+    __log_extra = {
+        'pipeline': 'import_measurements',
+        'task': 'get_distinct_gsrn',
+    }
+
+    try:
+        meteringpoints = MeteringPointQuery(session).all()
+    except Exception as e:
+        logger.exception('Failed to load MeteringPoints from database', extra=__log_extra)
+        raise task.retry(exc=e)
 
     tasks = [
         import_measurements.s(
@@ -157,12 +198,11 @@ def get_distinct_gsrn(session):
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.import_measurements',
     queue='import-measurements',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    retry_backoff_max=RETRY_MAX_DELAY,
-    max_retries=MAX_RETRIES,
+    default_retry_delay=10,
+    max_retries=50,
 )
 @logger.wrap_task(
     title='Importing measurements for GSRN: %(gsrn)s',
@@ -170,36 +210,62 @@ def get_distinct_gsrn(session):
     task='import_measurements',
 )
 @inject_session
-def import_measurements(subject, gsrn, session):
+def import_measurements(task, subject, gsrn, session):
     """
     Imports measurements for a single MeteringPoint, and starts a
     start_submit_measurement_pipeline() pipeline for each of the newly
     imported measurements.
 
+    :param celery.Task task:
     :param str subject:
     :param str gsrn:
     :param sqlalchemy.orm.Session session:
     """
-
-    meteringpoint = MeteringPointQuery(session) \
-        .has_gsrn(gsrn) \
-        .one()
+    __log_extra = {
+        'gsrn': gsrn,
+        'subject': subject,
+        'pipeline': 'import_measurements',
+        'task': 'import_measurements',
+    }
 
     @atomic
     def __import_measurements(session):
+        """
+        Import and save to DB as an atomic operation
+        """
         return importer.import_measurements_for(meteringpoint, session)
 
-    for measurement in __import_measurements():
-        start_submit_measurement_pipeline(measurement, meteringpoint)
+    # Load MeteringPoint from DB
+    try:
+        meteringpoint = MeteringPointQuery(session) \
+            .has_gsrn(gsrn) \
+            .one()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        raise task.retry(exc=e)
+
+    # Import measurements into DB
+    try:
+        measurements = __import_measurements()
+    except Exception as e:
+        logger.exception('Failed to import measurements from ElOverblik', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    # Submit each measurement to ledger in parallel
+    if measurements:
+        group([
+            build_submit_measurement_pipeline(measurement, meteringpoint, session)
+            for measurement in measurements
+        ]).apply_async()
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.submit_to_ledger',
     queue='import-measurements',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    retry_backoff_max=RETRY_MAX_DELAY,
-    max_retries=MAX_RETRIES,
+    default_retry_delay=SUBMIT_RETRY_DELAY,
+    max_retries=SUBMIT_MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Submitting Batch to ledger for Measurement: %(measurement_id)d',
@@ -207,56 +273,52 @@ def import_measurements(subject, gsrn, session):
     task='submit_to_ledger',
 )
 @atomic
-def submit_to_ledger(subject, measurement_id, session):
+def submit_to_ledger(task, subject, gsrn, measurement_id, session):
     """
     Submits a single measurement (and its associated GGO, if any) to the
     ledger. Returns the ledger Handle, which is passed on to the next chained
     task (poll_batch_status).
 
+    :param celery.Task task:
     :param str subject:
+    :param str gsrn:
     :param int measurement_id:
     :param sqlalchemy.orm.Session session:
     :rtype: str
     """
-    measurement = MeasurementQuery(session) \
-        .has_id(measurement_id) \
-        .one()
-
-    # Build ledger Batch
-    # TODO Move this to Measurement.build_batch() ?
-    batch = ols.Batch(measurement.meteringpoint.key.PrivateKey())
-    batch.add_request(measurement.get_ledger_publishing_request())
-    if measurement.ggo:
-        batch.add_request(measurement.ggo.get_ledger_issuing_request())
-
-    # Submit batch
-    try:
-        with logger.tracer.span('ExecuteBatch'):
-            handle = ledger.execute_batch(batch)
-    except ols.LedgerException as e:
-        # (e.code == 31) means Ledger Queue is full
-        # In this case, don't log the error, just try again later
-        if e.code != 31:
-            logger.exception(f'Ledger raise an exception for GSRN: {measurement.meteringpoint.gsrn}', extra={
-                'gsrn': measurement.meteringpoint.gsrn,
-                'subject': subject,
-                'measurement_id': str(measurement_id),
-                'error_message': str(e),
-                'error_code': e.code,
-                'pipeline': 'import_measurements',
-                'task': 'submit_to_ledger',
-            })
-
-        raise
-
-    logger.info(f'Batch submitted to ledger for GSRN: {measurement.meteringpoint.gsrn}', extra={
-        'gsrn': measurement.meteringpoint.gsrn,
+    __log_extra = {
+        'gsrn': gsrn,
         'subject': subject,
         'measurement_id': str(measurement_id),
-        'handle': handle,
         'pipeline': 'import_measurements',
         'task': 'submit_to_ledger',
-    })
+    }
+
+    # Get Measurement from DB
+    try:
+        measurement = MeasurementQuery(session) \
+            .has_id(measurement_id) \
+            .one()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Measurement from database', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    # Submit batch to ledger
+    try:
+        handle = ledger.execute_batch(measurement.build_batch())
+    except ols.LedgerConnectionError as e:
+        logger.exception('Failed to submit batch to ledger', extra=__log_extra)
+        raise task.retry(exc=e)
+    except ols.LedgerException as e:
+        if e.code == 31:
+            logger.info(f'Ledger queue is full', extra=__log_extra)
+            raise task.retry(exc=e)  # Queue is full
+        else:
+            raise
+
+    logger.info(f'Batch submitted to ledger for GSRN: {gsrn}', extra=__log_extra)
 
     measurement.set_submitted_to_ledger()
 
@@ -264,95 +326,168 @@ def submit_to_ledger(subject, measurement_id, session):
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.poll_batch_status',
     queue='import-measurements',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    retry_backoff_max=RETRY_MAX_DELAY,
-    max_retries=MAX_RETRIES,
+    default_retry_delay=POLL_RETRY_DELAY,
+    max_retries=POLL_MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Poll batch status',
     pipeline='import_measurements',
     task='poll_batch_status',
 )
-def poll_batch_status(handle, subject, measurement_id):
+def poll_batch_status(task, handle, subject, gsrn, measurement_id):
     """
     Polls the ledger for Batch status until it has been completed/declined.
     The param "handle" is passed on by the previous task (submit_to_ledger).
 
+    :param celery.Task task:
     :param str handle:
     :param str subject:
+    :param str gsrn:
     :param int measurement_id:
-    :rtype: bool
     """
-    with logger.tracer.span('GetBatchStatus'):
-        response = ledger.get_batch_status(handle)
+    __log_extra = {
+        'handle': handle,
+        'gsrn': gsrn,
+        'subject': subject,
+        'measurement_id': str(measurement_id),
+        'pipeline': 'import_measurements',
+        'task': 'poll_batch_status',
+    }
 
+    class InvalidBatch(Exception):
+        pass
+
+    # Get batch status from ledger
+    try:
+        response = ledger.get_batch_status(handle)
+    except ols.LedgerConnectionError as e:
+        logger.exception('Failed to poll ledger for batch status', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    # Assert status
     if response.status == ols.BatchStatus.COMMITTED:
-        logger.error('Ledger submitted', extra={
-            'subject': subject,
-            'handle': handle,
-            'pipeline': 'import_measurements',
-            'task': 'submit_to_ledger',
-        })
-        return True
+        logger.info('Ledger batch status: COMMITTED', extra=__log_extra)
     elif response.status == ols.BatchStatus.INVALID:
-        logger.error('Batch submit FAILED: Invalid', extra={
-            'subject': subject,
-            'handle': handle,
-            'pipeline': 'import_measurements',
-            'task': 'submit_to_ledger',
-        })
-        return False
+        logger.error('Ledger batch status: INVALID', extra=__log_extra)
+        raise InvalidBatch('Invalid batch')
     elif response.status == ols.BatchStatus.UNKNOWN:
-        logger.error('Batch submit UNKNOWN: Retrying', extra={
-            'subject': subject,
-            'handle': handle,
-            'pipeline': 'import_measurements',
-            'task': 'submit_to_ledger',
-        })
-        raise Exception('Retry task')
+        logger.info('Ledger batch status: UNKNOWN', extra=__log_extra)
+        raise task.retry()
+    elif response.status == ols.BatchStatus.PENDING:
+        logger.info('Ledger batch status: PENDING', extra=__log_extra)
+        raise task.retry()
     else:
-        raise Exception('Retry task')
+        raise RuntimeError('Unknown batch status returned, should NOT have happened!')
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.update_measurement_status',
     queue='import-measurements',
-    autoretry_for=(ols.LedgerException,),
-    retry_backoff=2,
-    max_retries=5,
+    default_retry_delay=POLL_RETRY_DELAY,
+    max_retries=POLL_MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Update status for Measurement: %(measurement_id)d',
     pipeline='import_measurements',
     task='update_measurement_status',
 )
-@atomic
-def update_measurement_status(published, subject, measurement_id, session):
+def update_measurement_status(task, subject, gsrn, measurement_id):
     """
     Updates the Measurement's published property. The param "published"
     is passed on by the previous task (poll_batch_status).
 
-    :param bool published:
+    :param celery.Task task:
     :param str subject:
+    :param str gsrn:
     :param int measurement_id:
-    :param sqlalchemy.orm.Session session:
     """
-    measurement = MeasurementQuery(session) \
-        .has_id(measurement_id) \
-        .one()
+    __log_extra = {
+        'gsrn': gsrn,
+        'subject': subject,
+        'measurement_id': str(measurement_id),
+        'pipeline': 'import_measurements',
+        'task': 'update_measurement_status',
+    }
 
-    measurement.published = measurement.published or published
+    @atomic
+    def __update_published_status(session):
+        """
+        Updates published status as an atomic operation
+        """
+        measurement = MeasurementQuery(session) \
+            .has_id(measurement_id) \
+            .one()
+
+        measurement.published = True
+
+    try:
+        __update_published_status()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Measurement from database', extra=__log_extra)
+        raise task.retry(exc=e)
+
+
+# @celery_app.task(
+#     bind=True,
+#     name='import_measurements.invoke_webhook',
+#     queue='import-measurements',
+#     retry_backoff=2,
+#     retry_backoff_max=POLL_MAX_RETRY_DELAY,
+#     max_retries=POLL_MAX_RETRIES,
+# )
+# @logger.wrap_task(
+#     title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
+#     pipeline='import_measurements',
+#     task='invoke_webhook',
+# )
+# @inject_session
+# def invoke_webhook(task, subject, gsrn, measurement_id, session):
+#     """
+#     invokes the "GGO ISSUED" webhook.
+#
+#     :param celery.Task task:
+#     :param str subject:
+#     :param str gsrn:
+#     :param int measurement_id:
+#     :param sqlalchemy.orm.Session session:
+#     """
+#     __log_extra = {
+#         'gsrn': gsrn,
+#         'subject': subject,
+#         'measurement_id': str(measurement_id),
+#         'pipeline': 'import_measurements',
+#         'task': 'invoke_webhook',
+#     }
+#
+#     try:
+#         measurement = MeasurementQuery(session) \
+#             .has_id(measurement_id) \
+#             .one()
+#     except orm.exc.NoResultFound:
+#         raise
+#     except Exception as e:
+#         logger.exception('Failed to load Measurement from database', extra=__log_extra)
+#         raise task.retry(exc=e)
+#
+#     webhook.on_ggo_issued(
+#         subject=subject,
+#         gsrn=gsrn,
+#         begin=measurement.begin,
+#     )
 
 
 @celery_app.task(
+    bind=True,
     name='import_measurements.invoke_webhook',
     queue='import-measurements',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    max_retries=5,
+    default_retry_delay=POLL_RETRY_DELAY,
+    max_retries=POLL_MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
@@ -360,21 +495,50 @@ def update_measurement_status(published, subject, measurement_id, session):
     task='invoke_webhook',
 )
 @inject_session
-def invoke_webhook(subject, gsrn, measurement_id, session):
+def invoke_webhook(task, subject, gsrn, measurement_id, subscription_id, session):
     """
-    invokes the "GGO ISSUED" webhook.
-
+    :param celery.Task task:
     :param str subject:
     :param str gsrn:
     :param int measurement_id:
+    :param int subscription_id:
     :param sqlalchemy.orm.Session session:
     """
-    measurement = MeasurementQuery(session) \
-        .has_id(measurement_id) \
-        .one()
+    __log_extra = {
+        'subject': subject,
+        'measurement_id': str(measurement_id),
+        'gsrn': str(gsrn),
+        'subscription_id': str(subscription_id),
+        'pipeline': 'compose',
+        'task': 'invoke_webhook',
+    }
 
-    webhook.on_ggo_issued(
-        subject=subject,
-        gsrn=gsrn,
-        begin=measurement.begin,
-    )
+    # Get GGO from database
+    try:
+        measurement = MeasurementQuery(session) \
+            .has_id(measurement_id) \
+            .one()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Measurement from database', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    # Get webhook subscription from database
+    try:
+        subscription = webhook.get_subscription(subscription_id, session)
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load WebhookSubscription from database', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    # Publish event to webhook
+    try:
+        webhook.on_ggo_issued(subscription, measurement.ggo)
+    except WebhookConnectionError as e:
+        logger.exception('Failed to invoke webhook: ON_GGO_ISSUED (Connection error)', extra=__log_extra)
+        raise task.retry(exc=e)
+    except WebhookError as e:
+        logger.exception('Failed to invoke webhook: ON_GGO_ISSUED', extra=__log_extra)
+        raise task.retry(exc=e)

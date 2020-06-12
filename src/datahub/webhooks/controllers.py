@@ -5,7 +5,7 @@ from datahub.http import Controller
 from datahub.auth import Token, require_oauth, inject_token
 
 from .service import WebhookService
-from .models import SubscribeRequest, Event
+from .models import SubscribeRequest, WebhookEvent
 
 
 class Subscribe(Controller):
@@ -18,7 +18,7 @@ class Subscribe(Controller):
 
     def __init__(self, event):
         """
-        :param Event event:
+        :param WebhookEvent event:
         """
         self.event = event
 
