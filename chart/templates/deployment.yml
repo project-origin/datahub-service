@@ -15,6 +15,7 @@ spec:
       containers:
         - name: datahub-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
+          imagePullPolicy: Always
           ports:
             - containerPort: 8089
           envFrom:
@@ -53,6 +54,7 @@ spec:
       containers:
         - name: datahub-beat-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
+          imagePullPolicy: Always
           args: ["./entrypoint.beat.sh"]
           envFrom:
             - configMapRef:
@@ -86,6 +88,7 @@ spec:
       containers:
         - name: datahub-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
+          imagePullPolicy: Always
           args: ["./entrypoint.worker.sh"]
           envFrom:
             - configMapRef:
@@ -121,6 +124,7 @@ spec:
       containers:
         - name: datahub-disclosure-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
+          imagePullPolicy: Always
           args: ["./entrypoint.disclosure-worker.sh"]
           envFrom:
             - configMapRef:
