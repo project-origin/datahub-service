@@ -73,7 +73,7 @@ class OnboardingCallback(Controller):
         return_url = redis.get(redis_key)
 
         if return_url:
-            start_import_meteringpoints_pipeline(request.sub)
+            start_import_meteringpoints_pipeline(request.sub, session)
 
             redis.delete(redis_key)
 

@@ -166,6 +166,19 @@ class Measurement(ModelBase):
             amount=self.amount,
         )
 
+    def build_batch(self):
+        """
+        Builds and returns a ledger Batch to publish the measurement,
+        and issue the GGO (if any exists).
+
+        :rtype: ols.Batch
+        """
+        batch = ols.Batch(self.meteringpoint.key.PrivateKey())
+        batch.add_request(self.get_ledger_publishing_request())
+        if self.ggo:
+            batch.add_request(self.ggo.get_ledger_issuing_request())
+        return batch
+
     def set_submitted_to_ledger(self):
         """
         Update time for when the measurement was submitted to ledger

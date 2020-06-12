@@ -51,4 +51,4 @@ def resubmit_measurements(session):
 
     for measurement in measurements:
         start_submit_measurement_pipeline(
-            measurement, measurement.meteringpoint)
+            measurement, measurement.meteringpoint, session)

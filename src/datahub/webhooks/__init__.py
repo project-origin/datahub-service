@@ -1,2 +1,2 @@
 from .models import *
-from .service import WebhookService
+from .service import *
