@@ -46,6 +46,9 @@ SUBMIT_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / SUBMIT_RETRY_DELAY
 POLL_RETRY_DELAY = 10
 POLL_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / POLL_RETRY_DELAY
 
+WEBHOOK_RETRY_DELAY = 10
+WEBHOOK_MAX_RETRIES = (24 * 60 * 60) / WEBHOOK_RETRY_DELAY
+
 
 # Services
 service = EloverblikService()
@@ -436,61 +439,12 @@ def update_measurement_status(task, subject, gsrn, measurement_id):
         raise task.retry(exc=e)
 
 
-# @celery_app.task(
-#     bind=True,
-#     name='import_measurements.invoke_webhook',
-#     queue='import-measurements',
-#     retry_backoff=2,
-#     retry_backoff_max=POLL_MAX_RETRY_DELAY,
-#     max_retries=POLL_MAX_RETRIES,
-# )
-# @logger.wrap_task(
-#     title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
-#     pipeline='import_measurements',
-#     task='invoke_webhook',
-# )
-# @inject_session
-# def invoke_webhook(task, subject, gsrn, measurement_id, session):
-#     """
-#     invokes the "GGO ISSUED" webhook.
-#
-#     :param celery.Task task:
-#     :param str subject:
-#     :param str gsrn:
-#     :param int measurement_id:
-#     :param sqlalchemy.orm.Session session:
-#     """
-#     __log_extra = {
-#         'gsrn': gsrn,
-#         'subject': subject,
-#         'measurement_id': str(measurement_id),
-#         'pipeline': 'import_measurements',
-#         'task': 'invoke_webhook',
-#     }
-#
-#     try:
-#         measurement = MeasurementQuery(session) \
-#             .has_id(measurement_id) \
-#             .one()
-#     except orm.exc.NoResultFound:
-#         raise
-#     except Exception as e:
-#         logger.exception('Failed to load Measurement from database', extra=__log_extra)
-#         raise task.retry(exc=e)
-#
-#     webhook.on_ggo_issued(
-#         subject=subject,
-#         gsrn=gsrn,
-#         begin=measurement.begin,
-#     )
-
-
 @celery_app.task(
     bind=True,
     name='import_measurements.invoke_webhook',
     queue='import-measurements',
-    default_retry_delay=POLL_RETRY_DELAY,
-    max_retries=POLL_MAX_RETRIES,
+    default_retry_delay=WEBHOOK_RETRY_DELAY,
+    max_retries=WEBHOOK_MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Invoking webhooks on_ggo_issued for GSRN: %(gsrn)s',
@@ -516,7 +470,7 @@ def invoke_webhook(task, subject, gsrn, measurement_id, subscription_id, session
         'task': 'invoke_webhook',
     }
 
-    # Get GGO from database
+    # Get Measurement from database
     try:
         measurement = MeasurementQuery(session) \
             .has_id(measurement_id) \
@@ -526,6 +480,10 @@ def invoke_webhook(task, subject, gsrn, measurement_id, subscription_id, session
     except Exception as e:
         logger.exception('Failed to load Measurement from database', extra=__log_extra)
         raise task.retry(exc=e)
+
+    # This should NEVER happen... Anyway:
+    if measurement.ggo is None:
+        raise RuntimeError('GGO does not exist')
 
     # Get webhook subscription from database
     try:

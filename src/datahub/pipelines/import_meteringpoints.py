@@ -70,6 +70,7 @@ def start_import_meteringpoints_pipeline(subject, session):
 @celery_app.task(
     name='import_meteringpoints.import_meteringpoints',
     queue='import-meteringpoints',
+    autoretry_for=(Exception,),
     default_retry_delay=RETRY_DELAY,
     max_retries=MAX_RETRIES,
 )
