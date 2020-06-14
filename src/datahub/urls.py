@@ -43,6 +43,8 @@ urls = (
 
     # Webhooks
     ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
+    ('/webhook/on-meteringpoints-available/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
     ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(WebhookEvent.ON_GGOS_ISSUED)),
+    ('/webhook/on-ggos-issued/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_GGOS_ISSUED)),
 
 )

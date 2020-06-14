@@ -78,6 +78,28 @@ class WebhookService(object):
             secret=secret,
         ))
 
+    @atomic
+    def unsubscribe(self, event, subject, url, secret, session):
+        """
+        :param WebhookEvent event:
+        :param str subject:
+        :param str url:
+        :param str secret:
+        :param sqlalchemy.orm.Session session:
+        :rtype: bool
+        """
+        query = session.query(WebhookSubscription) \
+            .filter(WebhookSubscription.event == event) \
+            .filter(WebhookSubscription.subject == subject) \
+            .filter(WebhookSubscription.url == url) \
+            .filter(WebhookSubscription.secret == secret)
+
+        if query.count() > 0:
+            query.delete()
+            return True
+        else:
+            return False
+
     def publish(self, subscription, schema, request):
         body = schema.dump(request)
 
