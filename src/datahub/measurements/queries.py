@@ -3,7 +3,6 @@ from sqlalchemy import func, bindparam, text
 from datetime import datetime
 from itertools import groupby
 from functools import lru_cache
-from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import joinedload
 
 from datahub.ggo import Ggo

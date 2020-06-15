@@ -1,7 +1,7 @@
 from .ggo import Ggo
 from .measurements import Measurement
 from .meteringpoints import MeteringPoint
-from .webhooks import Subscription
+from .webhooks import WebhookSubscription
 from .technology import Technology
 from .disclosure import (
     Disclosure,
@@ -19,7 +19,7 @@ VERSIONED_DB_MODELS = (
     Technology,
     Measurement,
     MeteringPoint,
-    Subscription,
+    WebhookSubscription,
     Disclosure,
     DisclosureMeteringPoint,
     DisclosureSettlement,

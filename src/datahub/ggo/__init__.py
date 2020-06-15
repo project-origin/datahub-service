@@ -1,2 +1,2 @@
 from .models import Ggo
-# from .issuing import GgoIssuingController
+from .queries import GgoQuery

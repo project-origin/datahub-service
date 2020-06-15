@@ -1,23 +1,36 @@
 import sqlalchemy as sa
 from enum import Enum
+from datetime import datetime
 from dataclasses import dataclass
 
 from datahub.db import ModelBase
 
 
-class Event(Enum):
+@dataclass
+class OnGgoIssuedRequest:
+    sub: str
+    gsrn: str
+    begin: datetime
+
+
+@dataclass
+class OnMeteringointsAvailableRequest:
+    sub: str
+
+
+class WebhookEvent(Enum):
     ON_GGOS_ISSUED = 'ON_GGOS_ISSUED'
     ON_METERINGPOINTS_AVAILABLE = 'ON_METERINGPOINTS_AVAILABLE'
 
 
-class Subscription(ModelBase):
+class WebhookSubscription(ModelBase):
     """
     Implementation of a single webhook event subscription.
     """
     __tablename__ = 'webhook_subscription'
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
-    event = sa.Column(sa.Enum(Event), index=True, nullable=False)
+    event = sa.Column(sa.Enum(WebhookEvent), index=True, nullable=False)
     subject = sa.Column(sa.String(), index=True, nullable=False)
     url = sa.Column(sa.String(), nullable=False)
     secret = sa.Column(sa.String(), nullable=True)

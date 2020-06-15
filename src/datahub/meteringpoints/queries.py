@@ -65,16 +65,6 @@ class MeteringPointQuery(object):
             MeteringPoint.gsrn == gsrn,
         ))
 
-    def has_key(self):
-        """
-        Only return meteringpoints which has their key set.
-
-        :rtype: MeteringPointQuery
-        """
-        return self.__class__(self.session, self.q.filter(
-            MeteringPoint.key.isnot(None),
-        ))
-
     def is_type(self, type):
         """
         Only include meteringpoints of the provided type,
