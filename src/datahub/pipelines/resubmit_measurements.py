@@ -31,7 +31,7 @@ def start_resubmit_measurements_pipeline():
     max_retries=5,
 )
 @logger.wrap_task(
-    title='Resubmitting unpublished measurements',
+    title='Getting unpublished measurements (to be re-submitted)',
     pipeline='resubmit_measurements',
     task='resubmit_measurements',
 )

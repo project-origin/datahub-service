@@ -5,7 +5,7 @@ from opencensus.trace.samplers import ProbabilitySampler
 from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
-from .tasks import Retry
+from .tasks import Task, Retry
 from .settings import SERVICE_NAME, AZURE_APP_INSIGHTS_CONN_STRING
 
 
@@ -67,19 +67,25 @@ def wrap_task(pipeline, task, title):
 
         @wraps(function)
         def wrap_task_wrapper(*args, **kwargs):
+            formatted_title = 'Task: %s (args: %s, kwargs: %s)' % (
+                (title % kwargs),
+                str(tuple(a for a in args if not isinstance(a, Task))),
+                str(kwargs),
+            )
+
             extra = kwargs.copy()
             extra.update({
                 'task': task,
+                'formatted_title': formatted_title,
                 'pipeline': pipeline,
                 'task_args': str(args),
                 'task_kwargs': str(kwargs),
             })
 
-            formatted_title = title % kwargs
-            info(f'Task: {formatted_title}', extra=extra)
+            info(formatted_title, extra=extra)
 
             try:
-                with tracer.span('Task: %s' % formatted_title):
+                with tracer.span(formatted_title):
                     return function(*args, **kwargs)
             except Retry:
                 raise

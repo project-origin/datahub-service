@@ -271,7 +271,7 @@ def import_measurements(task, subject, gsrn, session):
     max_retries=SUBMIT_MAX_RETRIES,
 )
 @logger.wrap_task(
-    title='Submitting Batch to ledger for Measurement: %(measurement_id)d',
+    title='Publishing measurement to ledger',
     pipeline='import_measurements',
     task='submit_to_ledger',
 )
@@ -326,6 +326,7 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
 
     logger.info(f'Batch submitted to ledger for GSRN: {gsrn}', extra=__log_extra)
 
+    # TODO move to a task for itself?
     measurement.set_submitted_to_ledger()
 
     return handle
@@ -397,7 +398,7 @@ def poll_batch_status(task, handle, subject, gsrn, measurement_id):
     max_retries=POLL_MAX_RETRIES,
 )
 @logger.wrap_task(
-    title='Update status for Measurement: %(measurement_id)d',
+    title='Update published status for Measurement',
     pipeline='import_measurements',
     task='update_measurement_status',
 )
