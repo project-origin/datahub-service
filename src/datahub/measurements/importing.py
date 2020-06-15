@@ -131,14 +131,6 @@ class MeasurementImportController(object):
         :rtype: list[Measurement]
         """
 
-        logger.info(f'Importing measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
-            'subject': meteringpoint.sub,
-            'gsrn': meteringpoint.gsrn,
-            'type': meteringpoint.type.value,
-            'begin': str(begin),
-            'end': str(end),
-        })
-
         # Import measurements from ElOverblik
         imported_measurements = self.importer.import_measurements(
             meteringpoint.gsrn, begin, end)
