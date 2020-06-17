@@ -11,20 +11,21 @@ class Controller(object):
 
     METHOD = 'POST'
 
+    # Request Schema
+    Request = None
+
+    # Response Schema
+    Response = None
+
     def handle_request(self, **kwargs):
         """
-        TODO
-
-        :param kwargs:
-        :return:
+        Abstract function to handle the HTTP request. Overwritten by subclassing.
         """
         raise NotImplementedError
 
     def __call__(self):
         """
-        TODO
-
-        :return:
+        Invoked by Flask to handle a HTTP request.
         """
         try:
             kwargs = {}
@@ -56,11 +57,14 @@ class Controller(object):
 
     def get_request_vm(self):
         """
-        TODO
+        Converts JSON provided in the request body according to the Schema
+        defined on self.Request (if any), and returns the model instance.
+
+        Returns None if self.Requests is None.
 
         :rtype: obj
         """
-        if hasattr(self, 'Request'):
+        if self.Request is not None:
             schema = self.Request()
 
             if self.METHOD == 'POST':
@@ -85,22 +89,12 @@ class Controller(object):
 
     def parse_response(self, response):
         """
-        TODO
-
         Converts the return value of handle_request() into a HTTP response
-        body. Raises a ValueError if handle_request() returned an invalid
-        object.
-
-        Rules are:
-
-        - None converts to an empty string
-        - Dictionaries are encoded as JSON
-        - ViewModel instances are mapped to JSON using the self.Response schema
-        - Boolean values converts into {"status": True|False}
-        - Anything else raises a ValueError
+        body.
 
         :param obj response: The object returned by handle_request()
-        :return str: HTTP response body
+        :rtype: str
+        :returns: HTTP response body
         """
         if response is None:
             return ''
@@ -108,7 +102,7 @@ class Controller(object):
             return json.dumps({'success': response})
         elif isinstance(response, dict):
             return json.dumps(response)
-        elif hasattr(self, 'Response'):
+        elif self.Response is not None:
             return json.dumps(self.Response().dump(response))
         else:
             return response

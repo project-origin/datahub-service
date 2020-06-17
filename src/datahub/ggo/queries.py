@@ -11,12 +11,33 @@ from .models import Ggo
 
 class GgoQuery(object):
     """
-    TODO
+    Abstraction around querying Ggo objects from the database,
+    supporting cascade calls to combine filters.
+
+    Usage example::
+
+        query = GgoQuery(session) \
+            .belongs_to('65e58f0b-62dd-40c2-a540-f773b0beed66') \
+            .begins_at(datetime(2020, 1, 1, 0, 0))
+
+        for ggo in query:
+            pass
+
+    Attributes not present on the GgoQuery class is redirected to
+    SQLAlchemy's Query object, like count(), all() etc., for example::
+
+        query = GgoQuery(session) \
+            .belongs_to('65e58f0b-62dd-40c2-a540-f773b0beed66') \
+            .begins_at(datetime(2020, 1, 1, 0, 0)) \
+            .offset(100) \
+            .limit(20) \
+            .count()
+
     """
     def __init__(self, session, q=None):
         """
-        :param Session session:
-        :param Query q:
+        :param sa.orm.Session session:
+        :param sa.orm.Query q:
         """
         self.session = session
         if q is not None:
@@ -35,7 +56,8 @@ class GgoQuery(object):
 
     def belongs_to(self, sub):
         """
-        TODO
+        Only include GGOs which belong to the user identified by
+        the provided sub (subject).
 
         :param str sub:
         :rtype: GgoQuery
@@ -46,7 +68,7 @@ class GgoQuery(object):
 
     def begins_at(self, begin):
         """
-        TODO
+        Only include GGOs which begins at the provided datetime.
 
         :param datetime begin:
         :rtype: GgoQuery
@@ -57,7 +79,8 @@ class GgoQuery(object):
 
     def begins_within(self, begin_range):
         """
-        TODO
+        Only include GGOs which begins within the provided datetime
+        range (both begin and end are included).
 
         :param DateTimeRange begin_range:
         :rtype: GgoQuery
@@ -69,7 +92,8 @@ class GgoQuery(object):
 
     def has_gsrn(self, gsrn):
         """
-        TODO
+        Only include GGOs which were issued to the MeteringPoint
+        identified with the provided GSRN number.
 
         :param str gsrn:
         :rtype: GgoQuery
@@ -80,6 +104,9 @@ class GgoQuery(object):
 
     def is_published(self, value=True):
         """
+        Only include GGOs which has been published to the ledger (and hence
+        are publicly available).
+
         :param bool value:
         :rtype: GgoQuery
         """

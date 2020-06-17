@@ -8,14 +8,14 @@ from .models import Technology, GetTechnologiesResponse
 
 class GetTechnologies(Controller):
     """
-    TODO
+    Returns a list of all Technology objects.
     """
     Response = md.class_schema(GetTechnologiesResponse)
 
     @inject_session
     def handle_request(self, session):
         """
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetTechnologiesResponse
         """
         return GetTechnologiesResponse(

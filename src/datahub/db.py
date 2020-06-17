@@ -14,9 +14,9 @@ Session = scoped_session(factory)
 
 def make_session(*args, **kwargs):
     """
-    TODO
+    Create a new SQLAlchemy session.
 
-    :return:
+    :rtype: sqlalchemy.orm.Session
     """
     return Session(*args, **kwargs)
 
@@ -44,14 +44,14 @@ def atomic(func):
     """
     @inject_session
     def atomic_wrapper(*args, **kwargs):
-        _session = kwargs['session']
+        session = kwargs['session']
         try:
             return_value = func(*args, **kwargs)
         except:
-            _session.rollback()
+            session.rollback()
             raise
         else:
-            _session.commit()
+            session.commit()
             return return_value
 
     return atomic_wrapper

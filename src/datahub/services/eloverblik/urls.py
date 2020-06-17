@@ -8,11 +8,11 @@ from datahub.settings import (
 )
 
 
-#https://preprod.eloverblik.dk/Authorization/authorization?thirdPartyId=GUIIntroThirdParty01TpId&fromDate=2016-04-17&toDate=2023-04-17&customerKey=CUSTOMER-SUB&returnUrl=http%3A%2F%2Fasd.com
-
-
 def generate_onboarding_url(sub, return_url):
     """
+    Generate an absolute URL to perform onboarding on ElOverblik. The URL
+    is unique for a single user (subject).
+
     :param str sub:
     :param str return_url:
     :rtype: str

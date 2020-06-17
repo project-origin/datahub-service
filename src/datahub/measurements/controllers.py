@@ -20,16 +20,17 @@ from .models import (
 
 class GetMeasurement(Controller):
     """
-    Get a single measurement of a specific type (PRODUCTION or CONSUMPTION).
+    Returns a single Measurement object of a specific type,
+    either PRODUCTION or CONSUMPTION.
     """
     Request = md.class_schema(GetMeasurementRequest)
     Response = md.class_schema(GetMeasurementResponse)
 
-    def __init__(self, type):
+    def __init__(self, typ):
         """
-        :param MeasurementType type:
+        :param MeasurementType typ:
         """
-        self.type = type
+        self.typ = typ
 
     @require_oauth('measurements.read')
     @inject_token
@@ -38,13 +39,13 @@ class GetMeasurement(Controller):
         """
         :param GetMeasurementRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementResponse
         """
         measurement = MeasurementQuery(session) \
             .belongs_to(token.subject) \
             .is_published() \
-            .is_type(self.type) \
+            .is_type(self.typ) \
             .has_gsrn(request.gsrn) \
             .begins_at(request.begin) \
             .one_or_none()
@@ -57,7 +58,10 @@ class GetMeasurement(Controller):
 
 class GetMeasurementList(Controller):
     """
-    Get a list of measurements.
+    Returns a list of Measurement objects which belongs to
+    any of the user's MeteringPoints identified by the provided
+    GSRN numbers. Can only select MeteringPoints which belongs
+    to the user.
     """
     Request = md.class_schema(GetMeasurementListRequest)
     Response = md.class_schema(GetMeasurementListResponse)
@@ -69,7 +73,7 @@ class GetMeasurementList(Controller):
         """
         :param GetMeasurementListRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementListResponse
         """
         query = MeasurementQuery(session) \
@@ -93,7 +97,9 @@ class GetMeasurementList(Controller):
 
 class GetBeginRange(Controller):
     """
-    Get the first and last "begin" for a series of measurements.
+    Given a set of filters, this endpoint returns the first and
+    last "begin" for all measurements in the result set.
+    Useful for checking when measuring began and ended.
     """
     Request = md.class_schema(GetBeginRangeRequest)
     Response = md.class_schema(GetBeginRangeResponse)
@@ -105,7 +111,7 @@ class GetBeginRange(Controller):
         """
         :param GetBeginRangeRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetBeginRangeResponse
         """
         query = MeasurementQuery(session) \
@@ -124,7 +130,9 @@ class GetBeginRange(Controller):
 
 class GetMeasurementSummary(Controller):
     """
-    Get an aggregated summary of measurements.
+    Returns a summary of the user's Measurements, or a subset hereof.
+    Useful for plotting or visualizing data, or wherever aggregated
+    data is needed.
     """
     Request = md.class_schema(GetMeasurementSummaryRequest)
     Response = md.class_schema(GetMeasurementSummaryResponse)
@@ -136,7 +144,7 @@ class GetMeasurementSummary(Controller):
         """
         :param GetMeasurementSummaryRequest request:
         :param Token token:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementSummaryResponse
         """
         summary = MeasurementQuery(session) \

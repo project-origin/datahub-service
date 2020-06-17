@@ -1,15 +1,71 @@
 ![alt text](doc/logo.png)
 
-# Project Origin DataHub Service
+# Project Origin DataHubService
 
-TODO Describe the project here
+This is the repository for Project Origin's DataHubService.
+
+This service is responsible for:
+
+- Importing metering points and measurement data from ElOverblik (DataHub)
+- Issuing of GGOs
+- Publishing measurements and issuing GGOs on to the blockchain ledger
+- Generating and storing publicly disclosed datasets
+- Mapping from technology- and fuel-code to a technology label
 
 
-# Environment variables
+## Installation and running locally
+
+The following sections describes how to install and run the project locally for development and debugging.
+
+
+## Requirements
+
+- Python 3.7
+- Pip
+- Pipenv
+- A PostgreSQL server with one database
+- A Redis server with tree databases
+- A Unix/Linux machine
+
+### First time installation
+
+
+Initially, make sure to define necessary environment variables (listed below).
+You can define them in the .env file in the root of the project
+([more details on this here](https://pipenv-fork.readthedocs.io/en/latest/advanced.html#automatic-loading-of-env)).
+
+Also, make sure to upgrade your system packages for good measure:
+   
+    pip install --upgrade --user setuptools pip pipenv
+
+Then install project dependencies:
+
+    pipenv install
+
+Then apply database migrations:
+
+    cd src/migrations
+    pipenv run migrate
+    cd ../../
+
+### Running locally (development)
+
+This starts the local development server (NOT for production use):
+
+    pipenv run develop
+
+### Running tests
+
+Run unit- and integration tests:
+
+    pipenv run pytest
+
+
+## Environment variables
 
 Name | Description | Example
 :--- | :--- | :--- |
-`SERVICE_NAME` | Name of this service | `ExampleBackend`
+`SERVICE_NAME` | Name of this service | `DataHubService`
 `DEBUG` | Whether or not to enable debugging mode (off by default) | `0` or `1`
 `SECRET` | Application secret for misc. operations | `foobar`
 `CORS_ORIGINS` | Allowed CORS origins | `http://www.example.com`
@@ -47,8 +103,9 @@ Name | Description | Example
 `CONCURRENCY` | Number of gevent greenthreads to execute asynchronous tasks | `100`
 **Debug:** | |
 `FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
+`LAST_MEASUREMENT_TIME` | Set a date to end pulling data from | `2021-09-01T00:00:00Z`
 
-# Building container images
+## Building container images
 
 Web API:
 
@@ -61,3 +118,20 @@ Worker:
 Worker Beat:
 
     sudo docker build -f Dockerfile.beat -t datahub-service-beat:v1 .
+
+
+# 3rd party libraries
+
+This project uses the following 3rd party libraries:
+
+- [Flask](https://flask.palletsprojects.com/en/1.1.x/): HTTP framework
+- [SQLAlchemy](https://www.sqlalchemy.org/): Database ORM
+- [Alembic](https://alembic.sqlalchemy.org/en/latest/): Database migrations and revisioning
+- [Marshmallow](https://marshmallow.readthedocs.io/en/stable/): JSON serialization/deserialization and validation
+- [Celery](https://docs.celeryproject.org/): Asynchronous tasks
+- [Redis](https://pypi.org/project/redis/): Celery backend + caching
+- [OpenCensus](https://github.com/census-instrumentation/opencensus-python): Logging and tracing
+- [Authlib](https://docs.authlib.org): OAuth2 implementation
+- [Origin-Ledger-SDK](https://pypi.org/project/Origin-Ledger-SDK/): Interface with the blockchain ledger
+- [bip32utils](https://github.com/lyndsysimon/bip32utils/): Generating block keys for the ledger
+- [pytest](https://docs.pytest.org/): Testing

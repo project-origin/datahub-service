@@ -1,126 +1,63 @@
-import logging
 from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 from datahub import logger
-from datahub.db import atomic
+from datahub.ggo import Ggo
 from datahub.services import eloverblik as e
-from datahub.meteringpoints import MeteringPoint, MeasurementType
-from datahub.settings import DEBUG, FIRST_MEASUREMENT_TIME, GGO_EXPIRE_TIME
+from datahub.meteringpoints import MeteringPoint
+from datahub.settings import (
+    FIRST_MEASUREMENT_TIME,
+    LAST_MEASUREMENT_TIME,
+    GGO_EXPIRE_TIME,
+)
 
 from .models import Measurement
 from .queries import MeasurementQuery
-from ..ggo import Ggo
 
 
-class MeasurementImportController(object):
+# Services
+eloverblik_service = e.EloverblikService()
+
+
+# Settings
+MEASUREMENT_DURATION = timedelta(hours=1)
+
+
+class MeasurementImporter(object):
     """
-    TODO
+    Imports TimeSeries from ElOverblik and converts them
+    to Measurement objects.
     """
-    MEASUREMENT_DURATION = timedelta(hours=1)
 
-    service = e.EloverblikService()
-
-    @atomic
-    def import_measurements_for(self, meteringpoint, session):
-        """
-        :param MeteringPoint meteringpoint:
-        :param Session session:
-        :rtype: list[Measurement]
-        """
-
-        # -- Datetime from and to --------------------------------------------
-
-        latest_begin = MeasurementQuery(session) \
-            .has_gsrn(meteringpoint.gsrn) \
-            .get_last_measured_begin()
-
-        # From latest measurement plus one hour
-        if latest_begin:
-            datetime_from = latest_begin + self.MEASUREMENT_DURATION
-        elif FIRST_MEASUREMENT_TIME:
-            datetime_from = datetime.strptime(FIRST_MEASUREMENT_TIME, "%Y-%m-%dT%H:%M:%SZ").astimezone(timezone.utc)
-        else:
-            datetime_from = (datetime.now() - relativedelta(months=1)) \
-                .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-        # Up until and including yesterday (datetime_to is excluded)
-        datetime_to = datetime.fromordinal(date.today().toordinal())
-
-        # -- Import from ElOverblik ------------------------------------------
-
-        logger.info(f'Importing measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
-            'subject': meteringpoint.sub,
-            'gsrn': meteringpoint.gsrn,
-            'type': meteringpoint.type.value,
-            'datetime_from': str(datetime_from),
-            'datetime_to': str(datetime_to),
-        })
-
-        # Imported measurements
-        imported_measurements = self.import_measurements(
-            meteringpoint=meteringpoint,
-            datetime_from=datetime_from.replace(tzinfo=timezone.utc),
-            datetime_to=datetime_to.replace(tzinfo=timezone.utc),
-        )
-
-        # -- Filter, insert to DB, and issue Ggos --------------------------------------
-
-        measurements = []
-
-        # Save measurements to DB and issue GGOs if necessary
-        for measurement in imported_measurements:
-            if self.meaurement_exists(measurement, session):
-                logging.error('Measurement already exists: %s' % str(measurement))
-                continue
-
-            session.add(measurement)
-            measurements.append(measurement)
-
-            if meteringpoint.type is MeasurementType.PRODUCTION:
-                session.add(self.issue_ggo_for(measurement))
-
-            session.flush()
-
-        logger.info(f'Imported {len(measurements)} measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
-            'subject': meteringpoint.sub,
-            'gsrn': meteringpoint.gsrn,
-            'type': meteringpoint.type.value,
-            'datetime_from': str(datetime_from),
-            'datetime_to': str(datetime_to),
-        })
-
-        return measurements
-
-    def import_measurements(self, meteringpoint, datetime_from, datetime_to):
+    def import_measurements(self, gsrn, begin, end):
         """
         datetime_from *INCLUDED*
         datetime_to *EXCLUDED*
 
-        :param MeteringPoint meteringpoint:
-        :param datetime datetime_from:
-        :param datetime datetime_to:
-        :rtype: list[Measurement]
+        :param str gsrn:
+        :param datetime begin:
+        :param datetime end:
+        :rtype: collections.abc.Iterable[Measurement]
         """
 
         # The service does not include time series at date=datetime_to,
         # so we add one day to make sure any time series at the date
         # of datetime_to is included in the result
-        imported_time_series = self.service.get_time_series(
-            gsrn=meteringpoint.gsrn,
-            date_from=datetime_from.date(),
-            date_to=datetime_to.date() + timedelta(days=1),
+        imported_time_series = eloverblik_service.get_time_series(
+            gsrn=gsrn,
+            date_from=begin.date(),
+            date_to=end.date() + timedelta(days=1),
         )
 
         # Convert the imported documents to Measurement objects
-        measurements = self.flattern_imported_time_series(imported_time_series)
+        imported_measurements = self.flattern_time_series(imported_time_series)
 
-        return [
-            m for m in measurements
-            if datetime_from <= m.begin < datetime_to
-        ]
+        return (
+            m for m in imported_measurements
+            if begin <= m.begin.astimezone(timezone.utc) < end
+        )
 
-    def flattern_imported_time_series(self, documents):
+    def flattern_time_series(self, documents):
         """
         :param list[e.TimeSeriesResult] documents:
         :rtype: collections.abc.Iterable[Measurement]
@@ -133,8 +70,8 @@ class MeasurementImportController(object):
                     start = period.time_interval.start
 
                     for point in period.point:
-                        point_start = start + (self.MEASUREMENT_DURATION * (point.position - 1))
-                        point_end = point_start + self.MEASUREMENT_DURATION
+                        point_start = start + (MEASUREMENT_DURATION * (point.position - 1))
+                        point_end = point_start + MEASUREMENT_DURATION
 
                         yield Measurement(
                             gsrn=time_series.mrid,
@@ -143,6 +80,95 @@ class MeasurementImportController(object):
                             amount=int(point.quantity * unit.value),
                             published=False,
                         )
+
+
+class MeasurementImportController(object):
+    """
+    TODO
+    """
+
+    importer = MeasurementImporter()
+
+    def import_measurements_for(self, meteringpoint, session):
+        """
+        :param MeteringPoint meteringpoint:
+        :param sqlalchemy.orm.Session session:
+        :rtype: list[Measurement]
+        """
+        begin = self.get_begin(meteringpoint, session)
+        end = self.get_end()
+        measurements = self.get_measurements(
+            meteringpoint, begin, end, session)
+
+        # Save measurements to database
+        session.add_all(measurements)
+
+        # Issue GGOs if necessary
+        if meteringpoint.is_producer():
+            session.add_all((
+                self.issue_ggo_for(measurement)
+                for measurement in measurements
+            ))
+
+        session.flush()
+
+        logger.info(f'Imported {len(measurements)} measurements from ElOverblik for GSRN: {meteringpoint.gsrn}', extra={
+            'subject': meteringpoint.sub,
+            'gsrn': meteringpoint.gsrn,
+            'type': meteringpoint.type.value,
+            'begin': str(begin),
+            'end': str(end),
+        })
+
+        return measurements
+
+    def get_measurements(self, meteringpoint, begin, end, session):
+        """
+        Imports and filters measurements
+
+        :param MeteringPoint meteringpoint:
+        :param sqlalchemy.orm.Session session:
+        :rtype: list[Measurement]
+        """
+
+        # Import measurements from ElOverblik
+        imported_measurements = self.importer.import_measurements(
+            meteringpoint.gsrn, begin, end)
+
+        # Filter out measurements that already exists
+        return [
+            measurement for measurement in imported_measurements
+            if not self.measurement_exists(measurement, session)
+        ]
+
+    def get_begin(self, meteringpoint, session):
+        """
+        :param MeteringPoint meteringpoint:
+        :param sqlalchemy.orm.Session session:
+        :rtype: datetime
+        """
+        latest_begin = MeasurementQuery(session) \
+            .has_gsrn(meteringpoint.gsrn) \
+            .get_last_measured_begin()
+
+        if latest_begin:
+            # From latest measurement plus the duration of one measurement
+            return latest_begin + MEASUREMENT_DURATION
+        elif FIRST_MEASUREMENT_TIME:
+            # From static defined time
+            return FIRST_MEASUREMENT_TIME
+        else:
+            # From the 1st of the month prior to now
+            return self.get_default_begin()
+
+    def get_end(self):
+        """
+        :rtype: datetime
+        """
+        if LAST_MEASUREMENT_TIME:
+            return min(self.get_default_end(), LAST_MEASUREMENT_TIME)
+        else:
+            return self.get_default_end()
 
     def issue_ggo_for(self, measurement):
         """
@@ -155,7 +181,7 @@ class MeasurementImportController(object):
             measurement=measurement,
         )
 
-    def meaurement_exists(self, measurement, session):
+    def measurement_exists(self, measurement, session):
         """
         :param Measurement measurement:
         :param Session session:
@@ -167,3 +193,22 @@ class MeasurementImportController(object):
             .count()
 
         return count > 0
+
+    def get_default_begin(self):
+        """
+        Returns the 1st of the month prior to now
+
+        :rtype: datetime
+        """
+        return (datetime.now(tz=timezone.utc) - relativedelta(months=1)) \
+            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def get_default_end(self):
+        """
+        Returns today (NOW) at 00:00:00
+
+        :rtype: datetime
+        """
+        return datetime \
+            .fromordinal(date.today().toordinal()) \
+            .astimezone(timezone.utc)

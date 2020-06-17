@@ -18,7 +18,14 @@ from .models import (
 
 class GetOnboardingUrl(Controller):
     """
-    TODO
+    Generates and returns an absolute URL to perform ElOverblik onboarding.
+    The generated URL is personal to the user (subject) identified by
+    their access token.
+
+    Requests must provide a return URL, where the client is redirected to
+    after completing the onboarding process. The client is, however,
+    redirected back to DataHubService (OnboardingCallback, below)
+    before being redirected to the provided return URL.
     """
     Request = md.class_schema(GetOnboardingUrlRequest)
     Response = md.class_schema(GetOnboardingUrlResponse)
@@ -48,7 +55,8 @@ class GetOnboardingUrl(Controller):
 
 class OnboardingCallback(Controller):
     """
-    TODO
+    Callback endpoint to handle completion of ElOverblik onboarding process.
+    Upon completion is triggered a pipeline to import their MeteringPoints.
     """
     METHOD = 'GET'
 
@@ -58,14 +66,14 @@ class OnboardingCallback(Controller):
     def handle_request(self, request, session):
         """
         :param OnboardingCallbackRequest request:
-        :param Session session:
+        :param sqlalchemy.orm.Session session:
         :rtype: flask.Response
         """
         redis_key = 'onboarding-return-url-%s' % request.sub
         return_url = redis.get(redis_key)
 
         if return_url:
-            start_import_meteringpoints_pipeline(request.sub)
+            start_import_meteringpoints_pipeline(request.sub, session)
 
             redis.delete(redis_key)
 

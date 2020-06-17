@@ -15,7 +15,11 @@ from datahub.common import DateTimeRange
 
 class Ggo(ModelBase):
     """
-    TODO
+    Implementation of a single GGO that has been issued.
+
+    GGOs are issued for all production MeteringPoints. Each individual
+    Measurement from these MeteringPoints have a corresponding GGO with
+    the same properties as the Measurement (begin/end, amount, technology..)
     """
     __tablename__ = 'ggo'
     __table_args__ = (
@@ -34,13 +38,18 @@ class Ggo(ModelBase):
     @property
     def meteringpoint(self):
         """
-        :rtype: Meteringpoints
+        Returns the MeteringPoint which this GGO was issued to.
+
+        :rtype: datahub.meteringpoints.MeteringPoint
         """
         return self.measurement.meteringpoint
 
     @property
     def gsrn(self):
         """
+        Returns the GSRN number of the MeteringPoint which this
+        GGO was issued to.
+
         :rtype: str
         """
         return self.meteringpoint.gsrn
@@ -48,6 +57,9 @@ class Ggo(ModelBase):
     @property
     def sector(self):
         """
+        Returns the sector (Price area) of the MeteringPoint which this
+        GGO was issued to.
+
         :rtype: str
         """
         return self.meteringpoint.sector
@@ -55,6 +67,8 @@ class Ggo(ModelBase):
     @property
     def begin(self):
         """
+        Returns the begin date/time of the Measurement.
+
         :rtype: datetime
         """
         return self.measurement.begin
@@ -62,6 +76,8 @@ class Ggo(ModelBase):
     @property
     def end(self):
         """
+        Returns the end date/time of the Measurement.
+
         :rtype: datetime
         """
         return self.measurement.end
@@ -69,6 +85,8 @@ class Ggo(ModelBase):
     @property
     def amount(self):
         """
+        Returns the amount of produced energy in Wh.
+
         :rtype: int
         """
         return self.measurement.amount
@@ -76,6 +94,9 @@ class Ggo(ModelBase):
     @property
     def technology_code(self):
         """
+        Returns the technology code of the MeteringPoint which this
+        GGO was issued to.
+
         :rtype: str
         """
         return self.meteringpoint.technology_code
@@ -83,6 +104,9 @@ class Ggo(ModelBase):
     @property
     def fuel_code(self):
         """
+        Returns the fuel code of the MeteringPoint which this
+        GGO was issued to.
+
         :rtype: str
         """
         return self.meteringpoint.fuel_code
@@ -90,6 +114,9 @@ class Ggo(ModelBase):
     @property
     def key(self):
         """
+        Returns the ledger key for this GGO, which is shared with the
+        measurements the GGO was issued to.
+
         :rtype: BIP32Key
         """
         return self.measurement.key
@@ -97,13 +124,18 @@ class Ggo(ModelBase):
     @property
     def address(self):
         """
+        Returns the (unique) address this GGO has on the ledger.
+
         :rtype: str
         """
         return ols.generate_address(ols.AddressPrefix.GGO, self.key.PublicKey())
 
     def get_ledger_issuing_request(self):
         """
-        :rtype: IssueGGORequest
+        Returns the issuing request object used to publish the
+        GGO to the ledger.
+
+        :rtype: ols.IssueGGORequest
         """
         return ols.IssueGGORequest(
             measurement_address=self.measurement.address,
@@ -118,6 +150,10 @@ class Ggo(ModelBase):
 
 @dataclass
 class MappedGgo:
+    """
+    A reflection of the Ggo class above, but supports JSON schema
+    serialization/deserialization using marshmallow/marshmallow-dataclass.
+    """
     address: str
     begin: datetime
     end: datetime
