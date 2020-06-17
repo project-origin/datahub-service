@@ -17,7 +17,7 @@ variables:
 
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
     kubeCon: 'kubecon-eloprindelse-prod'
-    namespace: 'eloprindelse'
+    namespace: 'cs03-project-origin-p-01'
     tag: ''
   ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
     kubeCon: 'test-kube-con'
