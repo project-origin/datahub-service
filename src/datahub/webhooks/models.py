@@ -4,6 +4,13 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from datahub.db import ModelBase
+from datahub.measurements import MappedMeasurement
+
+
+@dataclass
+class OnMeasurementPublishedRequest:
+    sub: str
+    measurement: MappedMeasurement
 
 
 @dataclass
@@ -19,6 +26,7 @@ class OnMeteringointsAvailableRequest:
 
 
 class WebhookEvent(Enum):
+    ON_MEASUREMENT_PUBLISHED = 'ON_MEASUREMENT_PUBLISHED'
     ON_GGOS_ISSUED = 'ON_GGOS_ISSUED'
     ON_METERINGPOINTS_AVAILABLE = 'ON_METERINGPOINTS_AVAILABLE'
 
