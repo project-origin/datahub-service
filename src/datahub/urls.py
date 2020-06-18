@@ -30,10 +30,8 @@ urls = (
     ('/measurements', measurements.GetMeasurementList()),
     ('/measurements/summary', measurements.GetMeasurementSummary()),
     ('/measurements/begin-range', measurements.GetBeginRange()),
-    ('/measurements/consumed', measurements.GetMeasurement(
-        MeasurementType.CONSUMPTION)),
-    ('/measurements/produced', measurements.GetMeasurement(
-        MeasurementType.PRODUCTION)),
+    ('/measurements/consumed', measurements.GetMeasurement(MeasurementType.CONSUMPTION)),
+    ('/measurements/produced', measurements.GetMeasurement(MeasurementType.PRODUCTION)),
 
     # Disclosure
     ('/disclosure', disclosure.GetDisclosure()),
@@ -42,9 +40,11 @@ urls = (
     ('/disclosure/delete', disclosure.DeleteDisclosure()),
 
     # Webhooks
-    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
-    ('/webhook/on-meteringpoints-available/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
+    ('/webhook/on-measurement-published/subscribe', webhooks.Subscribe(WebhookEvent.ON_MEASUREMENT_PUBLISHED)),
+    ('/webhook/on-measurement-published/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_MEASUREMENT_PUBLISHED)),
     ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(WebhookEvent.ON_GGOS_ISSUED)),
     ('/webhook/on-ggos-issued/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_GGOS_ISSUED)),
+    ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
+    ('/webhook/on-meteringpoints-available/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
 
 )
