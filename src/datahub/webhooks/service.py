@@ -5,7 +5,6 @@ import marshmallow_dataclass as md
 from hashlib import sha256
 from base64 import b64encode
 
-from datahub import logger
 from datahub.settings import DEBUG, HMAC_HEADER
 from datahub.db import atomic
 
@@ -13,6 +12,7 @@ from .models import (
     WebhookEvent,
     WebhookSubscription,
     OnGgoIssuedRequest,
+    OnMeasurementPublishedRequest,
     OnMeteringointsAvailableRequest,
 )
 
@@ -113,13 +113,6 @@ class WebhookService(object):
             HMAC_HEADER: hmac_header
         }
 
-        logger.info(f'Invoking webhook: {subscription.event.value}', extra={
-            'subject': subscription.subject,
-            'event': subscription.event.value,
-            'url': subscription.url,
-            'request': str(body),
-        })
-
         try:
             response = requests.post(
                 url=subscription.url,
@@ -140,6 +133,20 @@ class WebhookService(object):
                 response_body=str(response.content),
             )
 
+    def on_measurement_published(self, subscription, measurement):
+        """
+        :param WebhookSubscription subscription:
+        :param datahub.measurements.Measurement measurement:
+        """
+        self.publish(
+            subscription=subscription,
+            schema=md.class_schema(OnMeasurementPublishedRequest)(),
+            request=OnMeasurementPublishedRequest(
+                sub=subscription.subject,
+                measurement=measurement,
+            )
+        )
+
     def on_ggo_issued(self, subscription, ggo):
         """
         :param WebhookSubscription subscription:
@@ -155,23 +162,6 @@ class WebhookService(object):
             )
         )
 
-    # def on_ggo_issued(self, subject, gsrn, begin):
-    #     """
-    #     :param str subject:
-    #     :param str gsrn:
-    #     :param datetime begin:
-    #     """
-    #     return self.publish(
-    #         event=Event.ON_GGOS_ISSUED,
-    #         subject=subject,
-    #         schema=md.class_schema(OnGgoIssuedRequest),
-    #         request=OnGgoIssuedRequest(
-    #             sub=subject,
-    #             gsrn=gsrn,
-    #             begin=begin,
-    #         )
-    #     )
-
     def on_meteringpoints_available(self, subscription):
         """
         :param WebhookSubscription subscription:
@@ -183,16 +173,3 @@ class WebhookService(object):
                 sub=subscription.subject,
             )
         )
-
-    # def on_meteringpoints_available12(self, subject):
-    #     """
-    #     :param str subject:
-    #     """
-    #     return self.publish(
-    #         event=Event.ON_METERINGPOINTS_AVAILABLE,
-    #         subject=subject,
-    #         schema=md.class_schema(OnMeteringointsAvailableRequest),
-    #         request=OnMeteringointsAvailableRequest(
-    #             sub=subject,
-    #         )
-    #     )
