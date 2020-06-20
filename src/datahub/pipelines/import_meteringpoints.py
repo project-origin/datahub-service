@@ -14,6 +14,7 @@ from datahub.tasks import celery_app
 from datahub.db import inject_session, atomic
 from datahub.services.eloverblik import EloverblikService
 from datahub.meteringpoints import MeteringPointImporter
+from datahub.services.energytypes.service import EnergyTypeUnavailable
 from datahub.webhooks import (
     WebhookEvent,
     WebhookService,
@@ -68,9 +69,9 @@ def start_import_meteringpoints_pipeline(subject, session):
 
 
 @celery_app.task(
+    bind=True,
     name='import_meteringpoints.import_meteringpoints',
     queue='import-meteringpoints',
-    autoretry_for=(Exception,),
     default_retry_delay=RETRY_DELAY,
     max_retries=MAX_RETRIES,
 )
@@ -80,14 +81,27 @@ def start_import_meteringpoints_pipeline(subject, session):
     task='import_meteringpoints',
 )
 @atomic
-def import_meteringpoints(subject, session):
+def import_meteringpoints(task, subject, session):
     """
     Imports meteringpoints for a specific subject
 
+    :param celery.Task task:
     :param str subject:
-        :param sqlalchemy.orm.Session session:
+    :param sqlalchemy.orm.Session session:
     """
-    importer.import_meteringpoints(subject, session)
+    __log_extra = {
+        'subject': subject,
+        'pipeline': 'import_meteringpoints',
+        'task': 'import_meteringpoints',
+    }
+
+    try:
+        importer.import_meteringpoints(subject, session)
+    except EnergyTypeUnavailable:
+        raise
+    except Exception as e:
+        logger.exception('Failed to import meteringpoints, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
 
 
 @celery_app.task(
