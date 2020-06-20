@@ -24,12 +24,12 @@ variables:
     kubeCon: 'test-kube-con'
     namespace: 'test-project-origin'
     tag: 'rc-'
-    workerreplicas: 3
+    workerreplicas: 1
   ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
     kubeCon: 'dev-kube-con'
     namespace: 'dev-project-origin'
     tag: 'canary-'
-    workerreplicas: 3
+    workerreplicas: 1
 
 pool:
   vmImage: 'ubuntu-latest'
