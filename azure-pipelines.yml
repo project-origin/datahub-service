@@ -16,8 +16,8 @@ variables:
   imageName: 'projectorigin/$(releaseName)'
 
   ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-    kubeCon: 'kubecon-eloprindelse-prod'
-    namespace: 'cs03-project-origin-p-01'
+    kubeCon: 'prod-kube-con'
+    namespace: 'project-origin'
     tag: ''
     workerreplicas: 2
   ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
@@ -78,6 +78,11 @@ jobs:
 
   - job: deploy
     displayName: Deploy
+    pool:
+      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+        name: eloprindelse-prod
+      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
+        vmImage: 'ubuntu-latest'
     dependsOn: build_and_release
     condition: succeeded()
     steps:
@@ -101,6 +106,11 @@ jobs:
 
   - job: rollback
     displayName: Rollback
+    pool:
+      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+        name: eloprindelse-prod
+      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
+        vmImage: 'ubuntu-latest'
     dependsOn: deploy
     condition: and(failed('deploy'), ne(variables['Build.SourceBranchName'], 'develop'))
     steps:
