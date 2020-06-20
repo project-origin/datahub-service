@@ -25,7 +25,7 @@ from datahub.webhooks import (
 
 # Settings
 RETRY_DELAY = 10
-MAX_RETRIES = (1 * 60 * 60) / RETRY_DELAY
+MAX_RETRIES = (24 * 60 * 60) / RETRY_DELAY
 
 
 # Services
