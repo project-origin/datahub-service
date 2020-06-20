@@ -80,14 +80,12 @@ def start_import_meteringpoints_pipeline(subject, session):
     pipeline='import_meteringpoints',
     task='import_meteringpoints',
 )
-@atomic
-def import_meteringpoints(task, subject, session):
+def import_meteringpoints(task, subject):
     """
     Imports meteringpoints for a specific subject
 
     :param celery.Task task:
     :param str subject:
-    :param sqlalchemy.orm.Session session:
     """
     __log_extra = {
         'subject': subject,
@@ -95,8 +93,15 @@ def import_meteringpoints(task, subject, session):
         'task': 'import_meteringpoints',
     }
 
-    try:
+    @atomic
+    def __import_meteringpoints(session):
+        """
+        Import and save to DB as an atomic operation
+        """
         importer.import_meteringpoints(subject, session)
+
+    try:
+        __import_meteringpoints()
     except EnergyTypeUnavailable:
         raise
     except Exception as e:
