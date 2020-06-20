@@ -19,14 +19,17 @@ variables:
     kubeCon: 'prod-kube-con'
     namespace: 'project-origin'
     tag: ''
+    workerreplicas: 2
   ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
     kubeCon: 'test-kube-con'
     namespace: 'test-project-origin'
     tag: 'rc-'
+    workerreplicas: 1
   ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
     kubeCon: 'dev-kube-con'
     namespace: 'dev-project-origin'
     tag: 'canary-'
+    workerreplicas: 1
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -97,7 +100,7 @@ jobs:
           chartType: filepath
           chartPath: ./chart
           releaseName: $(releaseName)
-          overrideValues: tag=$(tag)
+          overrideValues: tag=$(tag),workerreplicas=$(workerreplicas)
           install: true
           waitForExecution: true
 
