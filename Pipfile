@@ -5,8 +5,8 @@ verify_ssl = true
 
 [dev-packages]
 pytest = "*"
-"testing.postgresql" = "*"
 waitress = "*"
+testcontainers = "*"
 
 [packages]
 gunicorn = "*"

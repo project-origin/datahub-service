@@ -1,13 +1,8 @@
 import pytest
-import testing.postgresql
 import marshmallow_dataclass as md
-
 from unittest.mock import patch, Mock
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from datahub.db import ModelBase
 from datahub.ggo import Ggo
 from datahub.ggo.queries import GgoQuery
 from datahub.meteringpoints import MeteringPoint, MeasurementType
@@ -58,68 +53,53 @@ existing_measurement = Measurement(
 )
 
 
-def seed_meteringpoints_and_measurements(session):
+@pytest.fixture(scope='module')
+def seeded_session(session):
     session.add(meteringpoint1)
     session.add(meteringpoint2)
     session.add(existing_measurement)
     session.flush()
     session.commit()
 
-
-@pytest.fixture(scope='module')
-def session():
-    """
-    Returns a Session object with Ggo + User data seeded for testing
-    """
-    with testing.postgresql.Postgresql() as psql:
-        engine = create_engine(psql.url())
-        ModelBase.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
-        session = Session()
-
-        seed_meteringpoints_and_measurements(session)
-
-        yield session
-
-        session.close()
+    yield session
 
 
 # -- Unit tests --------------------------------------------------------------
 
 
-def test__MeasurementImportController__get_begin__measurements_already_exists__should_continues_after_last_measurement(session):
+def test__MeasurementImportController__get_begin__measurements_already_exists__should_continues_after_last_measurement(seeded_session):
 
     # Arrange
     uut = MeasurementImportController()
 
     # Act
-    begin = uut.get_begin(meteringpoint1, session)
+    begin = uut.get_begin(meteringpoint1, seeded_session)
 
     # Assert
     assert begin == existing_measurement.end
 
 
 @patch('datahub.measurements.importing.FIRST_MEASUREMENT_TIME', new=datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc))
-def test__MeasurementImportController__get_begin__FIRST_MEASUREMENT_TIME_is_defined__should_begin_at_FIRST_MEASUREMENT_TIME(session):
+def test__MeasurementImportController__get_begin__FIRST_MEASUREMENT_TIME_is_defined__should_begin_at_FIRST_MEASUREMENT_TIME(seeded_session):
 
     # Arrange
     uut = MeasurementImportController()
 
     # Act
-    begin = uut.get_begin(meteringpoint2, session)
+    begin = uut.get_begin(meteringpoint2, seeded_session)
 
     # Assert
     assert begin == datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc)
 
 
 @patch('datahub.measurements.importing.FIRST_MEASUREMENT_TIME', new=None)
-def test__MeasurementImportController__get_begin__NO_measurements_exists_and_FIRST_MEASUREMENT_TIME_is_NOT_defined__should_begin_at_default(session):
+def test__MeasurementImportController__get_begin__NO_measurements_exists_and_FIRST_MEASUREMENT_TIME_is_NOT_defined__should_begin_at_default(seeded_session):
 
     # Arrange
     uut = MeasurementImportController()
 
     # Act
-    begin = uut.get_begin(meteringpoint2, session)
+    begin = uut.get_begin(meteringpoint2, seeded_session)
 
     # Assert
     assert begin == uut.get_default_begin()
@@ -175,13 +155,13 @@ def test__MeasurementImportController__get_end__LAST_MEASUREMENT_TIME_is_NOT_def
         (gsrn1, datetime(2050, 1, 1, 0, 0, tzinfo=timezone.utc), False),
         (gsrn2, datetime(2050, 1, 1, 0, 0, tzinfo=timezone.utc), False),
 ))
-def test__MeasurementImportController__measurement_exists(gsrn, begin, exists, session):
+def test__MeasurementImportController__measurement_exists(gsrn, begin, exists, seeded_session):
 
     # Arrange
     uut = MeasurementImportController()
 
     # Act
-    result = uut.measurement_exists(Mock(gsrn=gsrn, begin=begin), session)
+    result = uut.measurement_exists(Mock(gsrn=gsrn, begin=begin), seeded_session)
 
     # Assert
     assert result == exists
@@ -193,7 +173,7 @@ def test__MeasurementImportController__measurement_exists(gsrn, begin, exists, s
 @patch('datahub.measurements.importing.FIRST_MEASUREMENT_TIME', new=datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc))
 @patch('datahub.measurements.importing.LAST_MEASUREMENT_TIME', new=datetime(2019, 2, 1, 0, 0, tzinfo=timezone.utc))
 @patch('datahub.measurements.importing.eloverblik_service')
-def test__MeasurementImportController__integration(eloverblik_service, session):
+def test__MeasurementImportController__integration(eloverblik_service, seeded_session):
 
     def __get_time_series(gsrn, date_from, date_to):
         eloverblik_response_schema = md.class_schema(GetTimeSeriesResponse)
@@ -211,20 +191,20 @@ def test__MeasurementImportController__integration(eloverblik_service, session):
     uut = MeasurementImportController()
 
     # Act
-    uut.import_measurements_for(meteringpoint1, session)
-    uut.import_measurements_for(meteringpoint2, session)
+    uut.import_measurements_for(meteringpoint1, seeded_session)
+    uut.import_measurements_for(meteringpoint2, seeded_session)
 
-    session.commit()
+    seeded_session.commit()
 
     # Assert
-    assert MeasurementQuery(session).has_gsrn(gsrn1).count() == 624
-    assert MeasurementQuery(session).has_gsrn(gsrn1).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 5, 23, 0, tzinfo=timezone.utc)
-    assert MeasurementQuery(session).has_gsrn(gsrn1).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
-    assert GgoQuery(session).has_gsrn(gsrn1).count() == 624
-    assert all(m.ggo is not None for m in MeasurementQuery(session).has_gsrn(gsrn1))
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn1).count() == 624
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn1).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 5, 23, 0, tzinfo=timezone.utc)
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn1).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
+    assert GgoQuery(seeded_session).has_gsrn(gsrn1).count() == 624
+    assert all(m.ggo is not None for m in MeasurementQuery(seeded_session).has_gsrn(gsrn1))
 
-    assert MeasurementQuery(session).has_gsrn(gsrn2).count() == 743
-    assert MeasurementQuery(session).has_gsrn(gsrn2).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc)
-    assert MeasurementQuery(session).has_gsrn(gsrn2).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
-    assert GgoQuery(session).has_gsrn(gsrn2).count() == 0
-    assert all(m.ggo is None for m in MeasurementQuery(session).has_gsrn(gsrn2))
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn2).count() == 743
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn2).get_first_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc)
+    assert MeasurementQuery(seeded_session).has_gsrn(gsrn2).get_last_measured_begin().astimezone(timezone.utc) == datetime(2019, 1, 31, 22, 0, tzinfo=timezone.utc)
+    assert GgoQuery(seeded_session).has_gsrn(gsrn2).count() == 0
+    assert all(m.ggo is None for m in MeasurementQuery(seeded_session).has_gsrn(gsrn2))
