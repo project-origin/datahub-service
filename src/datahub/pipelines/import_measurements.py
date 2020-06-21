@@ -205,6 +205,7 @@ def get_distinct_gsrn(task, session=None):
     Fetches all distinct GSRN numbers from the database, and starts a
     import_measurements() pipelines for each of them.
 
+    :param celery.Task task:
     :param sqlalchemy.orm.Session session:
     """
     __log_extra = {
