@@ -127,6 +127,8 @@ class MeasurementImportController(object):
         Imports and filters measurements
 
         :param MeteringPoint meteringpoint:
+        :param datetime begin:
+        :param datetime end:
         :param sqlalchemy.orm.Session session:
         :rtype: list[Measurement]
         """

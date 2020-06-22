@@ -25,7 +25,7 @@ from datahub.webhooks import (
 
 # Settings
 RETRY_DELAY = 10
-MAX_RETRIES = (1 * 60 * 60) / RETRY_DELAY
+MAX_RETRIES = (24 * 60 * 60) / RETRY_DELAY
 
 
 # Services
@@ -71,7 +71,6 @@ def start_import_meteringpoints_pipeline(subject, session):
 @celery_app.task(
     bind=True,
     name='import_meteringpoints.import_meteringpoints',
-    queue='import-meteringpoints',
     default_retry_delay=RETRY_DELAY,
     max_retries=MAX_RETRIES,
 )
@@ -112,7 +111,6 @@ def import_meteringpoints(task, subject):
 @celery_app.task(
     bind=True,
     name='import_meteringpoints.invoke_webhook',
-    queue='import-meteringpoints',
     default_retry_delay=RETRY_DELAY,
     max_retries=MAX_RETRIES,
 )

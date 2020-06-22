@@ -1,7 +1,7 @@
 import logging
 from functools import partial, wraps
 from opencensus.trace.tracer import Tracer
-from opencensus.trace.samplers import ProbabilitySampler
+from opencensus.trace.samplers import AlwaysOnSampler
 from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
@@ -32,7 +32,7 @@ if AZURE_APP_INSIGHTS_CONN_STRING:
     exporter = AzureExporter(connection_string=AZURE_APP_INSIGHTS_CONN_STRING)
     exporter.add_telemetry_processor(__telemetry_processor)
 
-    sampler = ProbabilitySampler(1.0)
+    sampler = AlwaysOnSampler()
     tracer = Tracer(exporter=exporter, sampler=sampler)
 
     def __route_extras_to_azure(f, *args, extra=None, **kwargs):
