@@ -7,6 +7,7 @@ from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 from .urls import urls
 from .logger import handler, exporter, sampler
 from .settings import SECRET, CORS_ORIGINS, SERVICE_NAME
+from .tasks import celery_app
 
 # Import models here for SQLAlchemy to detech them
 from .models import VERSIONED_DB_MODELS
@@ -14,6 +15,9 @@ from .models import VERSIONED_DB_MODELS
 
 config_integration.trace_integrations(['requests'])
 config_integration.trace_integrations(['sqlalchemy'])
+
+
+celery_app.set_default()
 
 
 # -- Flask setup -------------------------------------------------------------

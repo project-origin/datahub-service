@@ -7,7 +7,7 @@ from datahub.http import Controller
 from datahub.pipelines import start_import_measurements_pipeline_for
 
 from .queries import MeteringPointQuery
-from .models import GetMeteringPointsResponse, SetKeyRequest, SetKeyResponse
+from .models import GetMeteringPointsResponse, SetKeyRequest
 
 
 class GetMeteringPoints(Controller):
@@ -44,7 +44,6 @@ class SetKey(Controller):
     Setting the key initiates importing Measurements for the MeteringPoint.
     """
     Request = md.class_schema(SetKeyRequest)
-    Response = md.class_schema(SetKeyResponse)
 
     @require_oauth('meteringpoints.read')
     @inject_token
@@ -52,7 +51,7 @@ class SetKey(Controller):
         """
         :param SetKeyRequest request:
         :param Token token:
-        :rtype: SetKeyResponse
+        :rtype: bool
         """
         self.set_key(token.subject, request.gsrn, request.key)
 
@@ -63,7 +62,7 @@ class SetKey(Controller):
 
         start_import_measurements_pipeline_for(token.subject, request.gsrn)
 
-        return SetKeyResponse(success=True)
+        return True
 
     @atomic
     def set_key(self, sub, gsrn, key, session):

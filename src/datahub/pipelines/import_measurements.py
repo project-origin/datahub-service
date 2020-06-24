@@ -13,11 +13,10 @@ Multiple entrypoints exists depending on the use case:
        submits a single measurement to the ledger.
 """
 import origin_ledger_sdk as ols
-from celery import group, chain
+from celery import group, chain, shared_task
 from sqlalchemy import orm
 
 from datahub import logger
-from datahub.tasks import celery_app
 from datahub.db import atomic, inject_session
 from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
 from datahub.meteringpoints import (
@@ -188,7 +187,7 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     return chain(*tasks)
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.get_distinct_gsrn',
     default_retry_delay=5,
@@ -231,7 +230,7 @@ def get_distinct_gsrn(task, session=None):
         group(tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.import_measurements',
     default_retry_delay=10,
@@ -295,7 +294,7 @@ def import_measurements(task, subject, gsrn, session):
         group(*tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.submit_to_ledger',
     default_retry_delay=SUBMIT_RETRY_DELAY,
@@ -357,11 +356,6 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
             raise task.retry(exc=e)
         else:
             raise
-    # except Exception as e:
-    #     import traceback
-    #     track = traceback.format_exc()
-    #     a = 2
-    #     raise
 
     logger.info(f'Batch submitted to ledger for GSRN: {gsrn}', extra=__log_extra)
 
@@ -371,7 +365,7 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
     return handle
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.poll_batch_status',
     default_retry_delay=POLL_RETRY_DELAY,
@@ -424,10 +418,8 @@ def poll_batch_status(task, handle, subject, gsrn, measurement_id):
     else:
         raise RuntimeError('Unknown batch status returned, should NOT have happened!')
 
-    x = 'POLL BATCH STATUS'
 
-
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.update_measurement_status',
     default_retry_delay=POLL_RETRY_DELAY,
@@ -475,10 +467,8 @@ def update_measurement_status(task, subject, gsrn, measurement_id):
         logger.exception('Failed to load Measurement from database, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
 
-    x = 'UPDATE PUBLISHED = TRUE'
 
-
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.invoke_on_measurement_published_webhook',
     default_retry_delay=WEBHOOK_RETRY_DELAY,
@@ -538,10 +528,8 @@ def invoke_on_measurement_published_webhook(task, subject, gsrn, measurement_id,
         logger.exception('Failed to invoke webhook: ON_MEASUREMENT_PUBLISHED, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
 
-    x = 'INVOKE WEBHOOK: ON_MEASUREMENT_PUBLISHED'
 
-
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.invoke_on_ggo_issued_webhook',
     default_retry_delay=WEBHOOK_RETRY_DELAY,
@@ -604,5 +592,3 @@ def invoke_on_ggo_issued_webhook(task, subject, gsrn, measurement_id, subscripti
     except WebhookError as e:
         logger.exception('Failed to invoke webhook: ON_GGO_ISSUED', extra=__log_extra)
         raise task.retry(exc=e)
-
-    x = 'INVOKE WEBHOOK: ON_GGO_ISSUED'

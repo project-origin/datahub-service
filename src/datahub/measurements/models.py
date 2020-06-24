@@ -236,9 +236,9 @@ class GetMeasurementResponse:
 
 @dataclass
 class GetMeasurementListRequest:
-    filters: MeasurementFilters
-    offset: int
-    limit: int
+    filters: MeasurementFilters = field(default=None)
+    offset: int = field(default=0)
+    limit: int = field(default=None)
 
 
 @dataclass
@@ -269,13 +269,14 @@ class GetBeginRangeResponse:
 @dataclass
 class GetMeasurementSummaryRequest:
     resolution: SummaryResolution
-    filters: MeasurementFilters
     fill: bool
 
     grouping: List[str] = field(metadata=dict(validate=(
         validate.ContainsOnly(('type', 'gsrn', 'sector')),
         unique_values,
     )))
+
+    filters: MeasurementFilters = field(default=None)
 
 
 @dataclass

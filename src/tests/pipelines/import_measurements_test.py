@@ -1,33 +1,26 @@
 # import os
 # import time
-# from itertools import product, cycle
-# from uuid import uuid4
-#
 # import pytest
+# from itertools import cycle
 # import origin_ledger_sdk as ols
 #
 # from celery.backends.redis import RedisBackend
 # from origin_ledger_sdk.ledger_connector import BatchStatusResponse
-# from testcontainers.compose import DockerCompose
-# from unittest.mock import patch, DEFAULT
+# from unittest.mock import patch
 # from datetime import datetime, timezone, timedelta
-# from sqlalchemy import create_engine
-# from sqlalchemy.orm import sessionmaker
 #
-# from datahub.db import ModelBase
 # from datahub.ggo import Ggo
 # from datahub.measurements import Measurement
 # from datahub.meteringpoints import MeteringPoint, MeasurementType
 # from datahub.tasks import celery_app
 # from datahub.webhooks import WebhookSubscription, WebhookEvent
 # from datahub.pipelines.import_measurements import (
-#     start_import_measurements_pipeline,
-#     InvalidBatch,
-#     get_distinct_gsrn)
+#     start_import_measurements_pipeline,submit_to_ledger
+# )
 #
 #
-# PIPELINE_TIMEOUT = 60 * 5  # Seconds
-# CURRENT_FOLDER = os.path.split(os.path.abspath(__file__))[0]
+# TASK_TIMEOUT = 30
+# # PIPELINE_TIMEOUT = 60 * 5  # Seconds
 #
 #
 # sub1 = 'SUB1'
@@ -129,7 +122,8 @@
 # )
 #
 #
-# def seed_data(session):
+# @pytest.fixture(scope='module')
+# def seeded_session(session):
 #     session.add(meteringpoint1)
 #     session.add(meteringpoint2)
 #     session.add(meteringpoint3)
@@ -169,71 +163,10 @@
 #     session.flush()
 #     session.commit()
 #
-#
-# @pytest.fixture(scope='session')
-# def compose():
-#     """
-#     Returns a Session object with Ggo + User data seeded for testing
-#     """
-#     with DockerCompose(CURRENT_FOLDER) as compose:
-#         yield compose
+#     yield session
 #
 #
-# @pytest.fixture(scope='session')
-# def session(compose):
-#     """
-#     Returns a Session object with Ggo + User data seeded for testing
-#     """
-#     host = compose.get_service_host('postgres-test', 5432)
-#     port = compose.get_service_port('postgres-test', 5432)
-#     url = f'postgresql://postgres:postgres@{host}:{port}/postgres'
-#
-#     engine = create_engine(url)
-#     ModelBase.metadata.create_all(engine)
-#     Session = sessionmaker(bind=engine, expire_on_commit=False)
-#
-#     session1 = Session()
-#     seed_data(session1)
-#     session1.close()
-#
-#     session2 = Session()
-#     yield session2
-#     session2.close()
-#
-#
-# @pytest.fixture(scope='session')
-# def celery_config(compose):
-#     redis_host = compose.get_service_host('redis-test', 6379)
-#     redis_port = compose.get_service_port('redis-test', 6379)
-#     redis_url = f'redis://:@{redis_host}:{redis_port}'
-#
-#     REDIS_BROKER_URL = f'{redis_url}/0'
-#
-#     celery_app.backend = RedisBackend(app=celery_app, url=f'{redis_url}/1')
-#     celery_app.conf.broker_url = REDIS_BROKER_URL
-#     celery_app.conf.broker_read_url = REDIS_BROKER_URL
-#     celery_app.conf.broker_write_url = REDIS_BROKER_URL
-#
-#     return {
-#         'broker_url': f'{redis_url}/0',
-#         'result_backend': f'{redis_url}/1',
-#     }
-#
-#
-# # -- Constructor -------------------------------------------------------------
-#
-#
-# def wait_recursively(task):
-#     """
-#     Waits for a task + all of its children (recursively) to complete.
-#
-#     :param celery.Task task:
-#     """
-#     time.sleep(1)
-#     task.get(timeout=PIPELINE_TIMEOUT)
-#     if task.children:
-#         for child in task.children:
-#             wait_recursively(child)
+# # -- Test cases --------------------------------------------------------------
 #
 #
 # @patch('datahub.db.make_session')
@@ -241,12 +174,22 @@
 # @patch('datahub.pipelines.import_measurements.importer')
 # @patch('datahub.pipelines.import_measurements.webhook_service.on_measurement_published')
 # @patch('datahub.pipelines.import_measurements.webhook_service.on_ggo_issued')
-# @pytest.mark.usefixtures('celery_session_worker')
+# @patch('datahub.pipelines.import_measurements.get_distinct_gsrn.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.import_measurements.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.submit_to_ledger.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.poll_batch_status.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.update_measurement_status.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.invoke_on_measurement_published_webhook.default_retry_delay', 0)
+# @patch('datahub.pipelines.import_measurements.invoke_on_ggo_issued_webhook.default_retry_delay', 0)
+# @pytest.mark.usefixtures('celery_worker')
 # def test__handle_composed_ggo__happy_path__should_publish_measurements_and_issue_ggos_and_invoke_webhooks(
 #         on_ggo_issued_mock, on_measurement_published_mock, importer_mock,
-#         ledger_mock, make_session_mock, session):
+#         ledger_mock, make_session_mock, seeded_session):
 #
-#     make_session_mock.return_value = session
+#     make_session_mock.return_value = seeded_session
+#
+#     x = submit_to_ledger
+#     y = 123
 #
 #     # -- Arrange -------------------------------------------------------------
 #
@@ -257,75 +200,42 @@
 #
 #     # Executing batch: Raises Ledger exceptions a few times, then returns Handle
 #     ledger_mock.execute_batch.side_effect = cycle((
-#         # ols.LedgerConnectionError(),
-#         # ols.LedgerException('', code=15),
-#         # ols.LedgerException('', code=17),
-#         # ols.LedgerException('', code=18),
-#         # ols.LedgerException('', code=31),
+#         ols.LedgerConnectionError(),
+#         ols.LedgerException('', code=15),
+#         ols.LedgerException('', code=17),
+#         ols.LedgerException('', code=18),
+#         ols.LedgerException('', code=31),
 #         'LEDGER-HANDLE',
 #     ))
 #
 #     # Getting batch status: Raises LedgerConnectionError once, then returns BatchStatuses
 #     ledger_mock.get_batch_status.side_effect = cycle((
-#         # ols.LedgerConnectionError(),
-#         # BatchStatusResponse(id='', status=ols.BatchStatus.UNKNOWN),
-#         # BatchStatusResponse(id='', status=ols.BatchStatus.PENDING),
+#         ols.LedgerConnectionError(),
+#         BatchStatusResponse(id='', status=ols.BatchStatus.UNKNOWN),
+#         BatchStatusResponse(id='', status=ols.BatchStatus.PENDING),
 #         BatchStatusResponse(id='', status=ols.BatchStatus.COMMITTED),
 #     ))
 #
 #     # -- Act -----------------------------------------------------------------
 #
 #     pipeline = start_import_measurements_pipeline()
+#     # list(pipeline.collect())
 #
 #     # -- Assert --------------------------------------------------------------
 #
-#     # Wait for pipeline + linked tasks to finish
-#     wait_recursively(pipeline)
-#
-#     assert 1 == 2
-#
-#
-#     # make_session_mock.return_value = session
-#     # build_ledger_batch.return_value = 'LEDGER BATCH'
-#     #
-#     # # Executing batch: Raises Ledger exceptions a few times, then returns Handle
-#     # ledger_mock.execute_batch.side_effect = (
-#     #     ols.LedgerConnectionError(),
-#     #     ols.LedgerException('', code=15),
-#     #     ols.LedgerException('', code=17),
-#     #     ols.LedgerException('', code=18),
-#     #     ols.LedgerException('', code=31),
-#     #     'LEDGER-HANDLE',
-#     # )
-#     #
-#     # # Getting batch status: Raises LedgerConnectionError once, then returns BatchStatuses
-#     # ledger_mock.get_batch_status.side_effect = (
-#     #     ols.LedgerConnectionError(),
-#     #     BatchStatusResponse(id='', status=ols.BatchStatus.UNKNOWN),
-#     #     BatchStatusResponse(id='', status=ols.BatchStatus.PENDING),
-#     #     BatchStatusResponse(id='', status=ols.BatchStatus.COMMITTED),
-#     # )
-#     #
-#     # # -- Act -----------------------------------------------------------------
-#     #
-#     # pipeline = start_import_measurements_pipeline()
-#     #
-#     # # -- Assert --------------------------------------------------------------
-#     #
 #     # # Wait for pipeline + linked tasks to finish
-#     # pipeline.get(timeout=PIPELINE_TIMEOUT)
-#     # [c.get(timeout=PIPELINE_TIMEOUT) for c in pipeline.children]
-#     #
-#     # # ledger.execute_batch()
-#     # assert ledger_mock.execute_batch.call_count == 6
+#     time.sleep(10)
+#
+#     # ledger.execute_batch()
+#     assert ledger_mock.execute_batch.call_count == 8 * 6
 #     # assert all(args == (('LEDGER BATCH',),) for args in ledger_mock.execute_batch.call_args_list)
-#     #
-#     # # ledger.get_batch_status()
-#     # assert ledger_mock.get_batch_status.call_count == 4
+#
+#     # ledger.get_batch_status()
+#     assert ledger_mock.get_batch_status.call_count == 8 * 4
 #     # assert all(args == (('LEDGER-HANDLE',),) for args in ledger_mock.get_batch_status.call_args_list)
-#     #
+#
 #     # # webhook_service.on_ggo_received_mock()
-#     # assert on_ggo_received_mock.call_count == 4
+#     # assert on_ggo_issued_mock.call_count == 4
 #     #
 #     # for split_target in batch.transactions[0].targets:
 #     #     if split_target.ggo.user_id == user2.id:
