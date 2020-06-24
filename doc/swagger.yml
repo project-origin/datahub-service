@@ -1,6 +1,6 @@
-openapi: 3.0.0
+swagger: '2.0'
 info:
-  version: "1.0.0-oas3"
+  version: "1.0.2"
   title: Project Origin DataHub Service
   description: |
     The document describes the API interface for Project Origin's DataHub Service.
@@ -26,72 +26,88 @@ paths:
 
   /meteringpoints:
     post:
-      summary: Get a list of all MeteringPoints
+      summary: Get a list of MeteringPoints
       description: >
-        Returns an array of all the user's MeteringPoints.
+        Returns a list of all the user's MeteringPoints.
       security:
         - Bearer: []
       tags:
         - MeteringPoints
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  meteringpoints:
-                    type: array
-                    description: Array of MeteringPoint objects
-                    items:
-                      $ref: '#/definitions/MeteringPoint'
-                      
-                      
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              meteringpoints:
+                type: array
+                description: Array of MeteringPoint objects
+                items:
+                  $ref: '#/definitions/MeteringPoint'
+
+
   /meteringpoints/set-key:
     post:
       summary: Set a master key for a MeteringPoint
       description: >
-        Set a BIP32 master extended key for a MeteringPoint (specified by its GSRN number). The key is used when publishing measurements and issuing GGOs for that specific MeteringPoint.
+        Set a BIP32 master extended key for a MeteringPoint (specified by its GSRN number). The key is used when publishing measurements and issuing GGOs for that specific MeteringPoint. Setting the key initiates importing Measurements for the MeteringPoint.
       security:
         - Bearer: []
       tags:
         - MeteringPoints
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                gsrn:
-                  type: string
-                  example: '123456789012345'
-                key:
-                  type: string
-                  example: 'xprv9x9uBiJxhu2KAKfh3ewbT9FEQB17o2jrRdTA99K5HE7VeXvDMD9uCzSUCLipuSmMe8oq3dMXVyBCE88mbvKEKSxCPdacKGuHr31EX3HnbyT'
+      produces:
+        - application/json
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              gsrn:
+                type: string
+                example: '123456789012345'
+              key:
+                type: string
+                example: 'xprv9x9uBiJxhu2KAKfh3ewbT9FEQB17o2jrRdTA99K5HE7VeXvDMD9uCzSUCLipuSmMe8oq3dMXVyBCE88mbvKEKSxCPdacKGuHr31EX3HnbyT'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                      
-                      
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+
+
   /measurements:
     post:
       summary: Get a list of Measurements
       description: >
-        Returns an array of Measurement objects which belongs to any of the user's MeteringPoints.
-        
+        Returns a list of Measurement objects which belongs to any of the
+        user's MeteringPoints with options to filter/narrow down the results.
+        Can only select MeteringPoints which belongs to the user.
+            
         ## Offset and limit (paging)
         
-        The client must provide an "offset" and a "limit" of how many objects to
+        The client can optionally provide an "offset" and/or "limit" of how many objects to
         return in each request. The response JSON contains the total amount
         of results (independent of the provided offset and limit), and can
         be used to calculate total number of requests required to get all Measurements.
@@ -102,7 +118,7 @@ paths:
         
         The "filters" object in the request body allows to narrow down results.
         All filters are optional, but can be mixed to perform complex searches.
-        Some filters are an array of values, which filters out any Measurements not having
+        Some filters are an arrays of values, which filters out any Measurements not matching
         any of the provided values (analogous to an SQL "IN" statement).
         
         ### Filtering on Measurement begin
@@ -116,38 +132,43 @@ paths:
         - Bearer: []
       tags:
         - Measurements
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                offset:
-                  type: integer
-                limit:
-                  type: integer
-                  example: 20
-                filters:
-                  $ref: '#/definitions/MeasurementFilters'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              offset:
+                type: integer
+              limit:
+                type: integer
+                example: 20
+              filters:
+                $ref: '#/definitions/MeasurementFilters'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  total:
-                    type: integer
-                    description: Total number of results
-                    example: 999
-                  measurements:
-                    type: array
-                    description: Array of Measurement objects
-                    items:
-                      $ref: '#/definitions/Measurement'
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              total:
+                type: integer
+                description: Total number of results
+                example: 999
+              measurements:
+                type: array
+                description: Array of Measurement objects
+                items:
+                  $ref: '#/definitions/Measurement'
 
 
 
@@ -156,7 +177,9 @@ paths:
     post:
       summary: Get a summary of Measurements
       description: >
-        Returns a summary of the user's Measurements, or a subset hereof. Useful for plotting or visualizing data.
+        Returns a summary of the user's Measurements, or a subset hereof.
+        Useful for plotting or visualizing data, or wherever aggregated
+        data is needed.
         
         ## Filtering
         
@@ -164,7 +187,7 @@ paths:
         
         ## Time resolution
         
-        Data is returned in the data/time resolution specified in the request. The total amount of energy (Wh) is aggregated/summarized for each period. Available resolutions are:
+        Data is returned in the date/time resolution specified in the request. The total amount of energy (Wh) is aggregated/summarized for each period. Available resolutions are:
         
         - all
         
@@ -178,7 +201,7 @@ paths:
         
         ## Labels
         
-        The response contans an array of labels in order. Each label is a string representing a period of time according to the requested time resolution. There may be gaps in the array, depending on the source data, unless the "fill" parameter in the request is set to true.
+        The response contans an array of labels in order. Each label is a string representing a period of time according to the requested time resolution. There may be gaps in the array, depending on the source data (unless the "fill" parameter in the request is set to true).
         
         ## Grouping
         
@@ -188,57 +211,60 @@ paths:
         - Bearer: []
       tags:
         - Measurements
-      requestBody:
-        description: TODO
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                fill:
-                  type: boolean
-                  description: Whether or not to fill gaps in the array of labels
-                resolution:
-                  $ref: '#/definitions/SummaryResolution'
-                grouping:
-                  $ref: '#/definitions/SummaryGrouping'
-                filters:
-                  $ref: '#/definitions/MeasurementFilters'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              fill:
+                type: boolean
+                description: Whether or not to fill gaps in the array of labels
+              resolution:
+                $ref: '#/definitions/SummaryResolution'
+              grouping:
+                $ref: '#/definitions/SummaryGrouping'
+              filters:
+                $ref: '#/definitions/MeasurementFilters'
       responses:
         '200':
-          description: asd
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  labels:
-                    type: array
-                    description: Date/datetime labels
-                    example: ['2020-01-01', '2020-01-02', '2020-01-03']
-                    items:
-                      type: string
-                  groups:
-                    type: array
-                    description: Array of result groups
-                    items:
-                      $ref: '#/definitions/SummaryGroup'
-                    example:
-                      group:
-                        example: ['production', '123456789012345']
-              example:
-                success: true
-                labels: ['2020-01-01', '2020-01-02', '2020-01-03']
-                groups:
-                  - group: ['123456789012345']
-                    values: [2000, 5000, 3000]
-                  - group: ['987654321054321']
-                    values: [4000, 1000, 6000]
-                      
-                      
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              labels:
+                type: array
+                description: Date/datetime labels
+                example: ['2020-01-01', '2020-01-02', '2020-01-03']
+                items:
+                  type: string
+              groups:
+                type: array
+                description: Array of result groups
+                items:
+                  $ref: '#/definitions/SummaryGroup'
+                example:
+                  group:
+                    example: ['production', '123456789012345']
+            example:
+              success: true
+              labels: ['2020-01-01', '2020-01-02', '2020-01-03']
+              groups:
+                - group: ['123456789012345']
+                  values: [2000, 5000, 3000]
+                - group: ['987654321054321']
+                  values: [4000, 1000, 6000]
+
+
   /measurements/consumed:
     post:
       summary: Get one consumption Measurement
@@ -249,33 +275,38 @@ paths:
         - Bearer: []
       tags:
         - Measurements
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                gsrn:
-                  type: string
-                  example: '123456789012345'
-                begin:
-                  type: string
-                  format: date-time
-                  example: '2020-01-01 00:00:00'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              gsrn:
+                type: string
+                example: '123456789012345'
+              begin:
+                type: string
+                format: date-time
+                example: '2020-01-01 00:00:00'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  measurement:
-                    $ref: '#/definitions/Measurement'
-                      
-                      
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              measurement:
+                $ref: '#/definitions/Measurement'
+
+
   /measurements/produced:
     post:
       summary: Get one production Measurement
@@ -286,31 +317,36 @@ paths:
         - Bearer: []
       tags:
         - Measurements
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                gsrn:
-                  type: string
-                  example: '123456789012345'
-                begin:
-                  type: string
-                  format: date-time
-                  example: '2020-01-01 00:00:00'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              gsrn:
+                type: string
+                example: '123456789012345'
+              begin:
+                type: string
+                format: date-time
+                example: '2020-01-01 00:00:00'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  measurement:
-                    $ref: '#/definitions/Measurement'
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              measurement:
+                $ref: '#/definitions/Measurement'
                       
                       
   /measurements/begin-range:
@@ -323,145 +359,296 @@ paths:
         - Bearer: []
       tags:
         - Measurements
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                filters:
-                  $ref: '#/definitions/MeasurementFilters'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              filters:
+                $ref: '#/definitions/MeasurementFilters'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  first:
-                    type: string
-                    format: date-time
-                    example: '2020-01-01 00:00:00'
-                  last:
-                    type: string
-                    format: date-time
-                    example: '2020-12-31 23:00:00'
-
-
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              first:
+                type: string
+                format: date-time
+                example: '2020-01-01 00:00:00'
+              last:
+                type: string
+                format: date-time
+                example: '2020-12-31 23:00:00'
 
 
   /ggo:
     post:
       summary: Get a list of issued GGOs
       description: >
-        Returns an array of GGO objects which has been issued to any of the user's MeteringPoints.
-        
-        ## Offset and limit (paging)
-        
-        The client must provide an "offset" and a "limit" of how many objects to
-        return in each request. The response JSON contains the total amount
-        of results (independent of the provided offset and limit), and can
-        be used to calculate total number of requests required to get all GGOs.
-        Its adviced to keep the provided "limit" reasonable low, as JSON encoding-
-        and decoding can be rather memory consuming.
-        
-        ## Filtering
-        
-        The "filters" object in the request body allows to narrow down results.
-        All filters are optional, but can be mixed to perform complex searches.
-        Some filters are an array of values, which filters out any GGOs not having
-        any of the provided values (analogous to an SQL "IN" statement).
+        Returns a list of GGO objects that have been issued to
+        a MeteringPoint identified by the provided GSRN number.
+        Can only select MeteringPoints which belongs to the user.
         
         ### Filtering on GGO begin
         
         "begin" is the time at which the energy production began. It usually have an
         end time which is one hour later, but only the begin is filtered upon.
-        It is possible to filters GGOs on either one specific begin, or a
-        range/period defined by a from- and to datetime.
-        These two options should be considered mutually exclusive.
+        It is possible to filters GGOs on a range/period defined by a from- and to datetime.
         
       security:
         - Bearer: []
       tags:
         - GGO
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                offset:
-                  type: integer
-                limit:
-                  type: integer
-                  example: 20
-                filters:
-                  $ref: '#/definitions/GgoFilters'
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              gsrn:
+                type: string
+                example: '123456789012345'
+              beginRange:
+                $ref: '#/definitions/DateTimeRange'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  total:
-                    type: integer
-                    description: Total number of results
-                    example: 999
-                  results:
-                    type: array
-                    description: Array of GGO objects
-                    items:
-                      $ref: '#/definitions/Ggo'
-
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              results:
+                type: array
+                description: Array of GGO objects
+                items:
+                  $ref: '#/definitions/Ggo'
 
 
   /disclosure:
     post:
       summary: Get a disclosure
       description: >
-        Set a BIP32 master extended key for a MeteringPoint (specified by its GSRN number). The key is used when publishing measurements and issuing GGOs for that specific MeteringPoint.
+        Get data for a disclosure. Data is returned in the same format as for /measurements/summary, except this endpoint returns a list of measurements and GGO summaries for each disclosed meteringpoint.
       security:
         - Bearer: []
       tags:
         - Disclosures
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                id:
-                  type: string
-                  example: '9a4b10d0-b598-4177-9514-36223a8f4846'
-                resolution:
-                  $ref: '#/definitions/SummaryResolution'
-                dateRange:
-                  $ref: '#/definitions/DateRange'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                example: '9a4b10d0-b598-4177-9514-36223a8f4846'
+              resolution:
+                $ref: '#/definitions/SummaryResolution'
+              dateRange:
+                $ref: '#/definitions/DateRange'
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: 'Error description (if any)'
+              description:
+                type: string
+                example: 'This is what we want to disclose'
+              begin:
+                type: string
+                format: date
+                example: '2020-06-24'
+              end:
+                type: string
+                format: date
+                example: '2020-06-26'
+              state:
+                $ref: '#/definitions/DisclosureState'
+              labels:
+                type: array
+                description: Array of date/timetimes
+                example: ['2020-06-24', '2020-06-25', '2020-06-26']
+                items:
+                  type: string
+                  format: date
+              data:
+                type: array
+                description: Disclosed data
+                items:
+                  $ref: '#/definitions/DisclosureDataSeries'
 
+
+  /disclosure/list:
+    post:
+      summary: Get a list of disclosures
+      description: >
+        Returns a list of all the user's disclosures.
+
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+      responses:
+        '200':
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              disclosures:
+                type: array
+                description: Array of Disclosure objects
+                items:
+                  $ref: '#/definitions/Disclosure'
+
+
+  /disclosure/create:
+    post:
+      summary: Create a new disclosure
+      description: >
+        Create a new, publicly available, disclosure of data for one or more MeteringPoints within a specific period of time. The "maxResolution" parameter set a limit on how high a resolution the data is available at when getting the disclosure. For instance, setting maxResolution=day will not allow getting data on an hourly basis. Returns the ID of the newly created disclosure.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: 'My disclosure'
+              description:
+                type: string
+                example: 'This is what we want to disclose'
+              begin:
+                type: string
+                format: date
+              end:
+                type: string
+                format: date
+              maxResolution:
+                $ref: '#/definitions/SummaryResolution'
+                description: The max. allowed resolution available when getting the disclosure.
+              publicizeMeteringpoints:
+                type: boolean
+                description: Set to true to disclose individual MeteringPoints. Otherwise, data from all MeteringPoints is aggredated into a single dataset.
+              publicizeGsrn:
+                type: boolean
+                description: Set to true to disclose the MeteringPoints' GSRN numbers.
+              publicizePhysicalAddress:
+                type: boolean
+                description: Set to true to disclose the MeteringPoints' physical address.
+              gsrn:
+                type: array
+                description: Array of GSRN numbers for MeteringPoints to disclose data for.
+                items:
+                  type: string
+                  example: '123456789012345'
+      responses:
+        '200':
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              id:
+                type: string
+                example: '9a4b10d0-b598-4177-9514-36223a8f4846'
+
+
+  /disclosure/delete:
+    post:
+      summary: Delete a disclosure
+      description: >
+        Delete an existing disclosure.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          type: string
+          description: Access token in the format "Bearer <access-token>"
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                example: '9a4b10d0-b598-4177-9514-36223a8f4846'
+      responses:
+        '200':
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              message:
+                type: string
+                example: 'Error description (if any)'
 
 
   /technologies:
     post:
       summary: Get a list of technologies
       description: >
-        Returns an array of all combinations of technology-code and fuel-code together with a human-readable string representation of the technology type.
+        Returns a list of all combinations of technology-code and fuel-code together with a human-readable string representation of the technology type.
         
       security:
         - Bearer: []
@@ -469,19 +656,18 @@ paths:
         - Technologies
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  success:
-                    type: boolean
-                    description: Whether or not the request succeeded
-                    example: true
-                  technologies:
-                    type: array
-                    description: Array of Technology objects
-                    items:
-                      $ref: '#/definitions/Technology'
+          description: OK
+          schema:
+            properties:
+              success:
+                type: boolean
+                description: Whether or not the request succeeded
+                example: true
+              technologies:
+                type: array
+                description: Array of Technology objects
+                items:
+                  $ref: '#/definitions/Technology'
 
 
 
@@ -495,75 +681,10 @@ securityDefinitions:
 
 
 definitions:
-  DateRange:
-    type: object
-    description: A peroid of time defined by its begin and end (both included)
-    properties:
-      begin:
-        type: string
-        format: date
-        example: '2020-01-01'
-      end:
-        type: string
-        format: date
-        example: '2020-12-31'
-        
-        
-  DateTimeRange:
-    type: object
-    description: A peroid of time defined by its begin and end (both included)
-    properties:
-      begin:
-        type: string
-        format: date-time
-        example: '2020-01-01 00:00:00'
-      end:
-        type: string
-        format: date-time
-        example: '2020-01-03 23:00:00'
-
-  SummaryResolution:
-    type: string
-    description: Date/datetime resolution of returned GGO summaries
-    example: 'day'
-    enum:
-      - all
-      - year
-      - month
-      - day
-      - hour
-
-  SummaryGrouping:
-    type: array
-    description: Data grouping of returned Measurement summaries
-    example: ['gsrn']
-    items:
-      type: string
-      enum:
-        - type
-        - gsrn
-        - sector
-
-  SummaryGroup:
-    type: object
-    description: A grouping of values in a Measurement summary
-    properties:
-      group:
-        type: array
-        example: ['123456789012345']
-        items:
-          type: string
-
-  MeasurementType:
-    type: string
-    description: Type of Measurement or MeteringPoint
-    example: 'production'
-    enum:
-      - production
-      - consumption
 
   MeteringPoint:
     type: object
+    description: A single physical MeteringPoint which measures either consumption or production of energy.
     properties:
       gsrn:
         type: string
@@ -598,6 +719,7 @@ definitions:
 
   Measurement:
     type: object
+    description: A single measurement spanning a certain period of time.
     properties:
       address:
         type: string
@@ -628,9 +750,17 @@ definitions:
       type:
         $ref: '#/definitions/MeasurementType'
 
+  MeasurementType:
+    type: string
+    description: Type of Measurement or MeteringPoint
+    example: 'production'
+    enum:
+      - production
+      - consumption
+
   MeasurementFilters:
     type: object
-    description: Filters when selecting Measurements
+    description: Filters for selecting/narrowing down Measurements
     properties:
       begin:
         type: string
@@ -660,7 +790,7 @@ definitions:
 
   Ggo:
     type: object
-    description: One specific GGO
+    description: A single GGO issued on the basis of produced energy.
     properties:
       address:
         type: string
@@ -693,65 +823,77 @@ definitions:
         description: The fuel code of the production MeteringPoint
         example: 'F01040100'
 
-
-  GgoFilters:
+  Disclosure:
     type: object
-    description: Filters when selecting GGOs
+    description: Metadata for a single set of disclosed data
     properties:
+      id:
+        type: string
+        example: '9a4b10d0-b598-4177-9514-36223a8f4846'
+      name:
+        type: string
+        example: 'My disclosure'
+      description:
+        type: string
+        example: 'This is what we want to disclose'
       begin:
         type: string
-        format: date-time
-      beginRange:
-        $ref: '#/definitions/DateTimeRange'
-      sector:
+        format: date
+      end:
+        type: string
+        format: date
+      publicizeMeteringpoints:
+        type: boolean
+        description: true to disclose individual MeteringPoints. Otherwise, data from all MeteringPoints is aggredated into a single dataset.
+      publicizeGsrn:
+        type: boolean
+        description: true to disclose the MeteringPoints' GSRN numbers.
+      publicizePhysicalAddress:
+        type: boolean
+        description: true to disclose the MeteringPoints' physical address.
+
+  DisclosureState:
+    type: string
+    example: 'AVAILABLE'
+    enum:
+      - PENDING
+      - PROCESSING
+      - AVAILABLE
+
+  DisclosureDataSeries:
+    type: object
+    description: A series of disclosed data
+    properties:
+      gsrn:
+        type: string
+        description: GSRN number, or null
+        example: '123456789012345'
+      address:
+        type: string
+        description: Physical address, or null
+        example: 'Some road 42, 1234 Some City'
+      measurements:
         type: array
-        description: Narrows GGOs down to those issued within certain sector(s)
-        example:
-          - DK1
-          - DK2
+        description: Array of measurements in Wh
+        example: [3000, 8000, 2000]
         items:
           type: string
-      technologyCode:
+          enum:
+            - type
+            - gsrn
+            - sector
+      ggos:
         type: array
-        description: Narrows GGOs down to those issued with certain technology code(s)
-        example:
-          - T010000
-          - T040101
+        description: Array of SummaryGroups for retired GGOs
         items:
-          type: string
-      fuelCode:
-        type: array
-        description: Narrows GGOs down to those issued with certain fuel code(s)
+          $ref: '#/definitions/SummaryGroup'
         example:
-          - F01040100
-          - F01010501
-        items:
-          type: string
-      issueGsrn:
-        type: array
-        description: >-
-          Narrows GGOs down to those issued to specific MeteringPoints(s)
-          (specified by their GSRN number)
-        example:
-          - '123456789012345'
-          - '987654321098765'
-        items:
-          type: string
-      retireGsrn:
-        type: array
-        description: >-
-          Narrows GGOs down to those retired to specific MeteringPoints(s)
-          (specified by their GSRN number)
-        example:
-          - '123456789012345'
-          - '987654321098765'
-        items:
-          type: string
-      category:
-        $ref: '#/definitions/GgoCategory'
+          - group: ['T010000', 'F01040100']
+          - values: [1500, 900, 3300]
 
   Technology:
     type: object
+    description: A combination of technology-code and fuel-code together with a human-readable string representation of the technology type.
     properties:
       technology:
         type: string
@@ -765,3 +907,61 @@ definitions:
         type: string
         description: Technology code
         example: 'F01040100'
+
+  DateRange:
+    type: object
+    description: A peroid of time defined by its begin and end (both included)
+    properties:
+      begin:
+        type: string
+        format: date
+        example: '2020-01-01'
+      end:
+        type: string
+        format: date
+        example: '2020-12-31'
+        
+        
+  DateTimeRange:
+    type: object
+    description: A peroid of time defined by its begin and end (both included)
+    properties:
+      begin:
+        type: string
+        format: date-time
+        example: '2020-01-01 00:00:00'
+      end:
+        type: string
+        format: date-time
+        example: '2020-01-03 23:00:00'
+
+  SummaryResolution:
+    type: string
+    example: 'day'
+    enum:
+      - all
+      - year
+      - month
+      - day
+      - hour
+
+  SummaryGrouping:
+    type: array
+    description: Data grouping of returned Measurement summaries
+    example: ['gsrn']
+    items:
+      type: string
+      enum:
+        - type
+        - gsrn
+        - sector
+
+  SummaryGroup:
+    type: object
+    description: A grouping of values in a Measurement summary
+    properties:
+      group:
+        type: array
+        example: ['123456789012345']
+        items:
+          type: string
