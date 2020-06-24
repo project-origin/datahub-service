@@ -30,3 +30,14 @@ def redis():
             container.get_container_host_ip(),
             container.get_exposed_port(6379)
         )
+
+
+@pytest.fixture(scope='module')
+def celery_config(redis):
+    redis_host, redis_port = redis
+    redis_url = f'redis://:@{redis_host}:{redis_port}'
+
+    return {
+        'broker_url': f'{redis_url}/0',
+        'result_backend': f'{redis_url}/1',
+    }
