@@ -1,0 +1,1383 @@
+openapi: 3.0.0
+info:
+  version: "1.1-oas3"
+  title: Project Origin DataHub Service
+  description: >
+    The document describes the API interface for Project Origin's DataHub
+    Service.
+
+
+    ## GitHub repository
+
+
+    The project is available at
+    [GitHub](https://github.com/project-origin/datahub-service).
+
+
+    ## Authorization
+
+
+    The client must provide the user's access token via the Authorization header
+    in the form *Bearer \<token\>*.
+
+
+tags:
+  - name: MeteringPoints
+  - name: Measurements
+  - name: GGO
+  - name: Disclosures
+  - name: Technologies
+  - name: Webhooks
+
+
+paths:
+  /meteringpoints:
+    post:
+      summary: Get a list of MeteringPoints
+      description: |
+        Returns a list of all the user's MeteringPoints.
+      security:
+        - Bearer: []
+      tags:
+        - MeteringPoints
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  meteringpoints:
+                    type: array
+                    description: Array of MeteringPoint objects
+                    items:
+                      $ref: '#/components/schemas/MeteringPoint'
+  /meteringpoints/set-key:
+    post:
+      summary: Set a master key for a MeteringPoint
+      description: >
+        Set a BIP32 master extended key for a MeteringPoint (specified by its
+        GSRN number). The key is used when publishing measurements and issuing
+        GGOs for that specific MeteringPoint. Setting the key initiates
+        importing Measurements for the MeteringPoint.
+      security:
+        - Bearer: []
+      tags:
+        - MeteringPoints
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gsrn:
+                  type: string
+                  example: '123456789012345'
+                key:
+                  type: string
+                  example: >-
+                    xprv9x9uBiJxhu2KAKfh3ewbT9FEQB17o2jrRdTA99K5HE7VeXvDMD9uCzSUCLipuSmMe8oq3dMXVyBCE88mbvKEKSxCPdacKGuHr31EX3HnbyT
+        required: true
+  /measurements:
+    post:
+      summary: Get a list of Measurements
+      description: >
+        Returns a list of Measurement objects which belongs to any of the user's
+        MeteringPoints with options to filter/narrow down the results. Can only
+        select MeteringPoints which belongs to the user.
+            
+        ## Offset and limit (paging)
+
+        The client can optionally provide an "offset" and/or "limit" of how many
+        objects to return in each request. The response JSON contains the total
+        amount of results (independent of the provided offset and limit), and
+        can be used to calculate total number of requests required to get all
+        Measurements. Its adviced to keep the provided "limit" reasonable low,
+        as JSON encoding- and decoding can be rather memory consuming.
+
+        ## Filtering
+
+        The "filters" object in the request body allows to narrow down results.
+        All filters are optional, but can be mixed to perform complex searches.
+        Some filters are an arrays of values, which filters out any Measurements
+        not matching any of the provided values (analogous to an SQL "IN"
+        statement).
+
+        ### Filtering on Measurement begin
+
+        "begin" is the time at which the measurement began. It usually have an
+        end time which is one hour later, but only the begin is filtered upon.
+        It is possible to filters Measurements on either one specific begin, or
+        a range/period defined by a from- and to datetime. These two options
+        should be considered mutually exclusive.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  total:
+                    type: integer
+                    description: Total number of results
+                    example: 999
+                  measurements:
+                    type: array
+                    description: Array of Measurement objects
+                    items:
+                      $ref: '#/components/schemas/Measurement'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offset:
+                  type: integer
+                limit:
+                  type: integer
+                  example: 20
+                filters:
+                  $ref: '#/components/schemas/MeasurementFilters'
+        required: true
+  /measurements/summary:
+    post:
+      summary: Get a summary of Measurements
+      description: >
+        Returns a summary of the user's Measurements, or a subset hereof. Useful
+        for plotting or visualizing data, or wherever aggregated data is needed.
+
+        ## Filtering
+
+        Measurements are filtered in the same way as with the /measurements
+        endpoint (above).
+
+        ## Time resolution
+
+        Data is returned in the date/time resolution specified in the request.
+        The total amount of energy (Wh) is aggregated/summarized for each
+        period. Available resolutions are:
+
+        - all
+
+        - year
+
+        - month
+
+        - day
+
+        - hour
+
+        ## Labels
+
+        The response contans an array of labels in order. Each label is a string
+        representing a period of time according to the requested time
+        resolution. There may be gaps in the array, depending on the source data
+        (unless the "fill" parameter in the request is set to true).
+
+        ## Grouping
+
+        Data can be grouped by multiple different keys, much like an SQL "GROUP
+        BY" statement. The returned data is split into one or more groups. Each
+        group has an array of values, which is the aggregated energy for a
+        period of time. The values are in same order as the returned labels.
+        Values may be null.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  labels:
+                    type: array
+                    description: Date/datetime labels
+                    example:
+                      - '2020-01-01'
+                      - '2020-01-02'
+                      - '2020-01-03'
+                    items:
+                      type: string
+                  groups:
+                    type: array
+                    description: Array of result groups
+                    items:
+                      $ref: '#/components/schemas/SummaryGroup'
+                    example:
+                      group:
+                        example:
+                          - production
+                          - '123456789012345'
+                example:
+                  success: true
+                  labels:
+                    - '2020-01-01'
+                    - '2020-01-02'
+                    - '2020-01-03'
+                  groups:
+                    - group:
+                        - '123456789012345'
+                      values:
+                        - 2000
+                        - 5000
+                        - 3000
+                    - group:
+                        - '987654321054321'
+                      values:
+                        - 4000
+                        - 1000
+                        - 6000
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fill:
+                  type: boolean
+                  description: Whether or not to fill gaps in the array of labels
+                resolution:
+                  $ref: '#/components/schemas/SummaryResolution'
+                grouping:
+                  $ref: '#/components/schemas/SummaryGrouping'
+                filters:
+                  $ref: '#/components/schemas/MeasurementFilters'
+        required: true
+  /measurements/consumed:
+    post:
+      summary: Get one consumption Measurement
+      description: >
+        Returns a single consumption Measurement for a specific MeteringPoint
+        (specified by its GSRN number) at a specific begin. Returns null if no
+        Measurement exists at the given time, or if the MeteringPoint is not a
+        energy consumer.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  measurement:
+                    $ref: '#/components/schemas/Measurement'
+      requestBody:
+        $ref: '#/components/requestBodies/Body'
+  /measurements/produced:
+    post:
+      summary: Get one production Measurement
+      description: >
+        Returns a single production Measurement for a specific MeteringPoint
+        (specified by its GSRN number) at a specific begin. Returns null if no
+        Measurement exists at the given time, or if the MeteringPoint is not a
+        energy producer.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  measurement:
+                    $ref: '#/components/schemas/Measurement'
+      requestBody:
+        $ref: '#/components/requestBodies/Body'
+  /measurements/begin-range:
+    post:
+      summary: Get the first and last begin for a series of Measurements
+      description: >
+        Given a set of filters, this endpoint returns the first and last "begin"
+        for all measurements in the result set. Useful for checking when
+        measuring began and ended.
+      security:
+        - Bearer: []
+      tags:
+        - Measurements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  first:
+                    type: string
+                    format: date-time
+                    example: '2020-01-01 00:00:00'
+                  last:
+                    type: string
+                    format: date-time
+                    example: '2020-12-31 23:00:00'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  $ref: '#/components/schemas/MeasurementFilters'
+        required: true
+  /ggo:
+    post:
+      summary: Get a list of issued GGOs
+      description: >
+        Returns a list of GGO objects that have been issued to a MeteringPoint
+        identified by the provided GSRN number. Can only select MeteringPoints
+        which belongs to the user.
+
+        ### Filtering on GGO begin
+
+        "begin" is the time at which the energy production began. It usually
+        have an end time which is one hour later, but only the begin is filtered
+        upon. It is possible to filters GGOs on a range/period defined by a
+        from- and to datetime.
+      security:
+        - Bearer: []
+      tags:
+        - GGO
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  results:
+                    type: array
+                    description: Array of GGO objects
+                    items:
+                      $ref: '#/components/schemas/Ggo'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gsrn:
+                  type: string
+                  example: '123456789012345'
+                beginRange:
+                  $ref: '#/components/schemas/DateTimeRange'
+        required: true
+  /disclosure:
+    post:
+      summary: Get a disclosure
+      description: >
+        Get data for a disclosure. Data is returned in the same format as for
+        /measurements/summary, except this endpoint returns a list of
+        measurements and GGO summaries for each disclosed meteringpoint.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Error description (if any)
+                  description:
+                    type: string
+                    example: This is what we want to disclose
+                  begin:
+                    type: string
+                    format: date
+                    example: '2020-06-24'
+                  end:
+                    type: string
+                    format: date
+                    example: '2020-06-26'
+                  state:
+                    $ref: '#/components/schemas/DisclosureState'
+                  labels:
+                    type: array
+                    description: Array of date/timetimes
+                    example:
+                      - '2020-06-24'
+                      - '2020-06-25'
+                      - '2020-06-26'
+                    items:
+                      type: string
+                      format: date
+                  data:
+                    type: array
+                    description: Disclosed data
+                    items:
+                      $ref: '#/components/schemas/DisclosureDataSeries'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: 9a4b10d0-b598-4177-9514-36223a8f4846
+                resolution:
+                  $ref: '#/components/schemas/SummaryResolution'
+                dateRange:
+                  $ref: '#/components/schemas/DateRange'
+        required: true
+  /disclosure/list:
+    post:
+      summary: Get a list of disclosures
+      description: |
+        Returns a list of all the user's disclosures.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  disclosures:
+                    type: array
+                    description: Array of Disclosure objects
+                    items:
+                      $ref: '#/components/schemas/Disclosure'
+  /disclosure/create:
+    post:
+      summary: Create a new disclosure
+      description: >
+        Create a new, publicly available, disclosure of data for one or more
+        MeteringPoints within a specific period of time. The "maxResolution"
+        parameter set a limit on how high a resolution the data is available at
+        when getting the disclosure. For instance, setting maxResolution=day
+        will not allow getting data on an hourly basis. Returns the ID of the
+        newly created disclosure.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  id:
+                    type: string
+                    example: 9a4b10d0-b598-4177-9514-36223a8f4846
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: My disclosure
+                description:
+                  type: string
+                  example: This is what we want to disclose
+                begin:
+                  type: string
+                  format: date
+                end:
+                  type: string
+                  format: date
+                maxResolution:
+                  $ref: '#/components/schemas/SummaryResolution'
+                  description: >-
+                    The max. allowed resolution available when getting the
+                    disclosure.
+                publicizeMeteringpoints:
+                  type: boolean
+                  description: >-
+                    Set to true to disclose individual MeteringPoints.
+                    Otherwise, data from all MeteringPoints is aggredated into a
+                    single dataset.
+                publicizeGsrn:
+                  type: boolean
+                  description: Set to true to disclose the MeteringPoints' GSRN numbers.
+                publicizePhysicalAddress:
+                  type: boolean
+                  description: >-
+                    Set to true to disclose the MeteringPoints' physical
+                    address.
+                gsrn:
+                  type: array
+                  description: >-
+                    Array of GSRN numbers for MeteringPoints to disclose data
+                    for.
+                  items:
+                    type: string
+                    example: '123456789012345'
+        required: true
+  /disclosure/delete:
+    post:
+      summary: Delete a disclosure
+      description: |
+        Delete an existing disclosure.
+      security:
+        - Bearer: []
+      tags:
+        - Disclosures
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  message:
+                    type: string
+                    example: Error description (if any)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: 9a4b10d0-b598-4177-9514-36223a8f4846
+        required: true
+  /technologies:
+    post:
+      summary: Get a list of technologies
+      description: >
+        Returns a list of all combinations of technology-code and fuel-code
+        together with a human-readable string representation of the technology
+        type.
+      security:
+        - Bearer: []
+      tags:
+        - Technologies
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+                  technologies:
+                    type: array
+                    description: Array of Technology objects
+                    items:
+                      $ref: '#/components/schemas/Technology'
+
+
+
+
+
+  /webhook/on-meteringpoints-available/subscribe:
+    post:
+      summary: Subscribe to webhook event ON_METERINGPOINTS_AVAILABLE
+      description: |
+        Subscribe to webhook event ON_METERINGPOINTS_AVAILABLE.
+        
+        This event is fired whenever there is a change in the MeteringPoints in which the user has granted access to. The receiving service is invited to fetch the list of available MeteringPoints using the /meteringpoints endpoint.
+        
+        Webhook events are expected to respond with a HTTP status 200. Any responses other than HTTP status 200 are retried every 60 seconds for up to around 24 hours. Hereafter retrying is cancelled.
+        
+        ## Security using HMAC
+        
+        When subscribing for a webhook event on behalf of a user, the service must provide a secret string. This is used when invoking the receiving service using HMAC Authentication. When firing the webhook, DataHubServices provide a SHA256 encryptet hash of the body using the provided secret in the "x-hub-signature" header.
+        
+        This implementation is a replica of how [GitHub secures their webhooks](https://developer.github.com/webhooks/securing/).
+        
+        ## Webhook body
+        
+        ON_METERINGPOINTS_AVAILABLE webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub). See example:
+        
+        ```
+        {
+            "sub": "619ed366-8f3b-431b-bdea-fb489df75ebd",
+        }
+        ```
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+  /webhook/on-meteringpoints-available/unsubscribe:
+    post:
+      summary: Unsubscribe from webhook event ON_METERINGPOINTS_AVAILABLE
+      description: |
+        Unsubscribe from webhook event ON_METERINGPOINTS_AVAILABLE.
+        
+        The provided URL and secret must match that used when subscribing.
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+
+
+  /webhook/on-measurement-published/subscribe:
+    post:
+      summary: Subscribe to webhook event ON_MEASUREMENT_PUBLISHED
+      description: |
+        Subscribe to webhook event ON_MEASUREMENT_PUBLISHED.
+        
+        This event is fired whenever a new Measurement has been published for the user's MeteringPoints.
+
+        Webhook events are expected to respond with a HTTP status 200. Any responses other than HTTP status 200 are retried every 60 seconds for up to around 24 hours. Hereafter retrying is cancelled.
+        
+        ## Security using HMAC
+        
+        When subscribing for a webhook event on behalf of a user, the service must provide a secret string. This is used when invoking the receiving service using HMAC Authentication. When firing the webhook, DataHubServices provide a SHA256 encryptet hash of the body using the provided secret in the "x-hub-signature" header.
+        
+        This implementation is a replica of how [GitHub secures their webhooks](https://developer.github.com/webhooks/securing/).
+        
+        ## Webhook body
+        
+        ON_MEASUREMENT_PUBLISHED webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub) along with the Measurement. See example:
+        
+        ```
+        {
+            "sub": "619ed366-8f3b-431b-bdea-fb489df75ebd",
+            "measurement": {
+              "address": "849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b",
+              "begin": "2020-01-01 00:00:00",
+              "end": "2020-01-01 01:00:00",
+              "amount": 10000,
+              "gsrn": "123456789012345",
+              "sector": "DK1",
+              "type": "production"
+            }
+        }
+        ```
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+  /webhook/on-measurement-published/unsubscribe:
+    post:
+      summary: Unsubscribe from webhook event ON_MEASUREMENT_PUBLISHED
+      description: |
+        Unsubscribe from webhook event ON_MEASUREMENT_PUBLISHED.
+        
+        The provided URL and secret must match that used when subscribing.
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+
+
+  /webhook/on-ggos-issued/subscribe:
+    post:
+      summary: Subscribe to webhook event ON_GGOS_ISSUED
+      description: |
+        Subscribe to webhook event ON_GGOS_ISSUED.
+        
+        This event is fired whenever a new GGO has been issued for the user's MeteringPoints.
+
+        Webhook events are expected to respond with a HTTP status 200. Any responses other than HTTP status 200 are retried every 60 seconds for up to around 24 hours. Hereafter retrying is cancelled.
+        
+        ## Security using HMAC
+        
+        When subscribing for a webhook event on behalf of a user, the service must provide a secret string. This is used when invoking the receiving service using HMAC Authentication. When firing the webhook, DataHubServices provide a SHA256 encryptet hash of the body using the provided secret in the "x-hub-signature" header.
+        
+        This implementation is a replica of how [GitHub secures their webhooks](https://developer.github.com/webhooks/securing/).
+        
+        ## Webhook body
+        
+        ON_GGOS_ISSUED webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub), the GSRN number of the MeteringPoint, and the GGO's begin. See example:
+        
+        ```
+        {
+            "sub": "619ed366-8f3b-431b-bdea-fb489df75ebd",
+            "gsrn": "123456789012345",
+            "begin": "2020-01-01 00:00:00",
+        }
+        ```
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+  /webhook/on-ggos-issued/unsubscribe:
+    post:
+      summary: Unsubscribe from webhook event ON_GGOS_ISSUED
+      description: |
+        Unsubscribe from webhook event ON_GGOS_ISSUED.
+        
+        The provided URL and secret must match that used when subscribing.
+      security:
+        - Bearer: []
+      tags:
+        - Webhooks
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Access token in the format "Bearer <access-token>"
+          schema:
+            type: string
+      requestBody:
+        description: TODO
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                url:
+                  type: string
+                  description: URL to invoke webhook event on
+                  example: 'https://my-website.com/on-ggo-issued'
+                secret:
+                  type: string
+                  description: A secret which is used to 
+                  example: 'a secret string only known by my website or service'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether or not the request succeeded
+                    example: true
+
+
+components:
+  requestBodies:
+    Body:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              gsrn:
+                type: string
+                example: '123456789012345'
+              begin:
+                type: string
+                format: date-time
+                example: '2020-01-01 00:00:00'
+      required: true
+  securitySchemes:
+    Bearer:
+      type: apiKey
+      name: Authorization
+      in: header
+  schemas:
+    MeteringPoint:
+      type: object
+      description: >-
+        A single physical MeteringPoint which measures either consumption or
+        production of energy.
+      properties:
+        gsrn:
+          type: string
+          description: The unique GSRN number
+          example: '123456789012345'
+        type:
+          $ref: '#/components/schemas/MeasurementType'
+        sector:
+          type: string
+          description: The sector in which the MeteringPoint is located
+          example: DK1
+        technologyCode:
+          type: string
+          description: The technology code (only if type is production)
+          example: T010000
+        fuelCode:
+          type: string
+          description: The fuel code (only if type is production)
+          example: F01040100
+        streetCode:
+          type: string
+        streetName:
+          type: string
+        buildingNumber:
+          type: string
+        cityName:
+          type: string
+        postCode:
+          type: string
+        municipalityCode:
+          type: string
+    Measurement:
+      type: object
+      description: A single measurement spanning a certain period of time.
+      properties:
+        address:
+          type: string
+          description: The Measurement's address on the ledger
+          example: >-
+            849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b
+        begin:
+          type: string
+          format: date-time
+          description: The time at which the measurement started
+          example: '2020-01-01 00:00:00'
+        end:
+          type: string
+          format: date-time
+          description: The time at which the measurement ended
+          example: '2020-01-01 01:00:00'
+        amount:
+          type: integer
+          description: The amount of energy measured in Wh
+          example: 10000
+        gsrn:
+          type: string
+          description: GSRN number of the MeteringPoint
+          example: '123456789012345'
+        sector:
+          type: string
+          description: The sector in which the MeteringPoint is located
+          example: DK1
+        type:
+          $ref: '#/components/schemas/MeasurementType'
+    MeasurementType:
+      type: string
+      description: Type of Measurement or MeteringPoint
+      example: production
+      enum:
+        - production
+        - consumption
+    MeasurementFilters:
+      type: object
+      description: Filters for selecting/narrowing down Measurements
+      properties:
+        begin:
+          type: string
+          format: date-time
+        beginRange:
+          $ref: '#/components/schemas/DateTimeRange'
+        sector:
+          type: array
+          description: Narrows Measurements down to those issued within certain sector(s)
+          example:
+            - DK1
+            - DK2
+          items:
+            type: string
+        gsrn:
+          type: array
+          description: >-
+            Narrows Measurements down to specific MeteringPoints(s) (specified
+            by their GSRN number)
+          example:
+            - '123456789012345'
+            - '987654321098765'
+          items:
+            type: string
+        type:
+          $ref: '#/components/schemas/MeasurementType'
+    Ggo:
+      type: object
+      description: A single GGO issued on the basis of produced energy.
+      properties:
+        address:
+          type: string
+          description: The GGOs address on the ledger
+          example: >-
+            849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b
+        sector:
+          type: string
+          description: The sector in which the energy was produced
+          example: DK1
+        begin:
+          type: string
+          format: date-time
+          description: The time at which the production (measurement) started
+          example: '2020-01-01 00:00:00'
+        end:
+          type: string
+          format: date-time
+          description: The time at which the production (measurement) ended
+          example: '2020-01-01 01:00:00'
+        amount:
+          type: integer
+          description: The amount of energy produced in Wh
+          example: 10000
+        technologyCode:
+          type: string
+          description: The technology code of the production MeteringPoint
+          example: T010000
+        fuelCode:
+          type: string
+          description: The fuel code of the production MeteringPoint
+          example: F01040100
+    Disclosure:
+      type: object
+      description: Metadata for a single set of disclosed data
+      properties:
+        id:
+          type: string
+          example: 9a4b10d0-b598-4177-9514-36223a8f4846
+        name:
+          type: string
+          example: My disclosure
+        description:
+          type: string
+          example: This is what we want to disclose
+        begin:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        publicizeMeteringpoints:
+          type: boolean
+          description: >-
+            true to disclose individual MeteringPoints. Otherwise, data from all
+            MeteringPoints is aggredated into a single dataset.
+        publicizeGsrn:
+          type: boolean
+          description: true to disclose the MeteringPoints' GSRN numbers.
+        publicizePhysicalAddress:
+          type: boolean
+          description: true to disclose the MeteringPoints' physical address.
+    DisclosureState:
+      type: string
+      example: AVAILABLE
+      enum:
+        - PENDING
+        - PROCESSING
+        - AVAILABLE
+    DisclosureDataSeries:
+      type: object
+      description: A series of disclosed data
+      properties:
+        gsrn:
+          type: string
+          description: 'GSRN number, or null'
+          example: '123456789012345'
+        address:
+          type: string
+          description: 'Physical address, or null'
+          example: 'Some road 42, 1234 Some City'
+        measurements:
+          type: array
+          description: Array of measurements in Wh
+          example:
+            - 3000
+            - 8000
+            - 2000
+          items:
+            type: string
+            enum:
+              - type
+              - gsrn
+              - sector
+        ggos:
+          type: array
+          description: Array of SummaryGroups for retired GGOs
+          items:
+            $ref: '#/components/schemas/SummaryGroup'
+          example:
+            - group:
+                - T010000
+                - F01040100
+            - values:
+                - 1500
+                - 900
+                - 3300
+    Technology:
+      type: object
+      description: >-
+        A combination of technology-code and fuel-code together with a
+        human-readable string representation of the technology type.
+      properties:
+        technology:
+          type: string
+          description: A string representation of the technology
+          example: Wind
+        technologyCode:
+          type: string
+          description: Technology code
+          example: T010000
+        fuelCode:
+          type: string
+          description: Technology code
+          example: F01040100
+    DateRange:
+      type: object
+      description: A peroid of time defined by its begin and end (both included)
+      properties:
+        begin:
+          type: string
+          format: date
+          example: '2020-01-01'
+        end:
+          type: string
+          format: date
+          example: '2020-12-31'
+    DateTimeRange:
+      type: object
+      description: A peroid of time defined by its begin and end (both included)
+      properties:
+        begin:
+          type: string
+          format: date-time
+          example: '2020-01-01 00:00:00'
+        end:
+          type: string
+          format: date-time
+          example: '2020-01-03 23:00:00'
+    SummaryResolution:
+      type: string
+      example: day
+      enum:
+        - all
+        - year
+        - month
+        - day
+        - hour
+    SummaryGrouping:
+      type: array
+      description: Data grouping of returned Measurement summaries
+      example:
+        - gsrn
+      items:
+        type: string
+        enum:
+          - type
+          - gsrn
+          - sector
+    SummaryGroup:
+      type: object
+      description: A grouping of values in a Measurement summary
+      properties:
+        group:
+          type: array
+          example:
+            - '123456789012345'
+          items:
+            type: string
