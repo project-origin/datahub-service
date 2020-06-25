@@ -15,7 +15,7 @@ from .models import (
     GetBeginRangeResponse,
     GetMeasurementSummaryRequest,
     GetMeasurementSummaryResponse,
-)
+    Measurement)
 
 
 class GetMeasurement(Controller):
@@ -58,10 +58,9 @@ class GetMeasurement(Controller):
 
 class GetMeasurementList(Controller):
     """
-    Returns a list of Measurement objects which belongs to
-    any of the user's MeteringPoints identified by the provided
-    GSRN numbers. Can only select MeteringPoints which belongs
-    to the user.
+    Returns a list of Measurement objects which belongs to any of the
+    user's MeteringPoints with options to filter/narrow down the results.
+    Can only select MeteringPoints which belongs to the user.
     """
     Request = md.class_schema(GetMeasurementListRequest)
     Response = md.class_schema(GetMeasurementListResponse)
@@ -78,20 +77,22 @@ class GetMeasurementList(Controller):
         """
         query = MeasurementQuery(session) \
             .belongs_to(token.subject) \
-            .is_published() \
-            .apply_filters(request.filters)
+            .is_published()
 
-        measurements = query \
-            .offset(request.offset) \
-            .limit(request.limit) \
-            .all()
+        if request.filters:
+            query = query.apply_filters(request.filters)
 
-        total = query.count()
+        results = query \
+            .order_by(Measurement.begin) \
+            .offset(request.offset)
+
+        if request.limit:
+            results = results.limit(request.limit)
 
         return GetMeasurementListResponse(
             success=True,
-            total=total,
-            measurements=measurements,
+            total=query.count(),
+            measurements=results.all(),
         )
 
 
@@ -147,11 +148,14 @@ class GetMeasurementSummary(Controller):
         :param sqlalchemy.orm.Session session:
         :rtype: GetMeasurementSummaryResponse
         """
-        summary = MeasurementQuery(session) \
+        query = MeasurementQuery(session) \
             .belongs_to(token.subject) \
-            .is_published() \
-            .apply_filters(request.filters) \
-            .get_summary(request.resolution, request.grouping)
+            .is_published()
+
+        if request.filters:
+            query = query.apply_filters(request.filters)
+
+        summary = query.get_summary(request.resolution, request.grouping)
 
         if request.fill and request.filters.begin_range:
             summary.fill(request.filters.begin_range)

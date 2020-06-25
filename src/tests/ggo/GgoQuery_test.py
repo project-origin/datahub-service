@@ -1,12 +1,8 @@
 import pytest
-import testing.postgresql
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime, timedelta, timezone
 from itertools import product
+from datetime import datetime, timedelta, timezone
 
 from datahub.common import DateTimeRange
-from datahub.db import ModelBase
 from datahub.ggo import Ggo, GgoQuery
 from datahub.measurements import Measurement
 from datahub.meteringpoints import MeteringPoint, MeasurementType
@@ -58,9 +54,8 @@ meteringpoint4 = MeteringPoint(
 )
 
 
-def seed_ggo_test_data(session):
-
-    # Dependencies
+@pytest.fixture(scope='module')
+def seeded_session(session):
     session.add(meteringpoint1)
     session.add(meteringpoint1)
     session.add(meteringpoint2)
@@ -109,26 +104,10 @@ def seed_ggo_test_data(session):
         if i % 500 == 0:
             session.flush()
 
+    session.flush()
     session.commit()
 
-
-@pytest.fixture(scope='module')
-def seeded_session():
-    """
-    Returns a Session object with Ggo + User data seeded for testing
-    """
-    with testing.postgresql.Postgresql() as psql:
-        engine = create_engine(psql.url())
-        ModelBase.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine, expire_on_commit=False)
-
-        session1 = Session()
-        seed_ggo_test_data(session1)
-        session1.close()
-
-        session2 = Session()
-        yield session2
-        session2.close()
+    yield session
 
 
 # -- TEST CASES --------------------------------------------------------------

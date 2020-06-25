@@ -1,0 +1,18 @@
+version: '3'
+services:
+
+  postgres-test:
+    image: postgres:latest
+    container_name: postgres-test
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  redis-test:
+    image: redis:latest
+    container_name: redis-test
+    ports:
+      - "6380:6379"

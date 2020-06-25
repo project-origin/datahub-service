@@ -13,13 +13,11 @@ Multiple entrypoints exists depending on the use case:
        submits a single measurement to the ledger.
 """
 import origin_ledger_sdk as ols
-from celery import group, chain
+from celery import group, chain, shared_task
 from sqlalchemy import orm
 
 from datahub import logger
-from datahub.tasks import celery_app
 from datahub.db import atomic, inject_session
-from datahub.services.eloverblik import EloverblikService
 from datahub.settings import LEDGER_URL, DEBUG, BATCH_RESUBMIT_AFTER_HOURS
 from datahub.meteringpoints import (
     MeteringPointQuery,
@@ -46,23 +44,28 @@ SUBMIT_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / SUBMIT_RETRY_DELAY
 POLL_RETRY_DELAY = 10
 POLL_MAX_RETRIES = (BATCH_RESUBMIT_AFTER_HOURS * 60 * 60) / POLL_RETRY_DELAY
 
-WEBHOOK_RETRY_DELAY = 10
+WEBHOOK_RETRY_DELAY = 60
 WEBHOOK_MAX_RETRIES = (24 * 60 * 60) / WEBHOOK_RETRY_DELAY
 
 
 # Services
-service = EloverblikService()
 importer = MeasurementImportController()
-webhook = WebhookService()
 ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
+webhook_service = WebhookService()
+
+
+class InvalidBatch(Exception):
+    pass
 
 
 def start_import_measurements_pipeline():
     """
     Starts a pipeline which imports measurements for all
     MeteringPoints in the database.
+
+    :rtype: celery.Task
     """
-    get_distinct_gsrn \
+    return get_distinct_gsrn \
         .s() \
         .apply_async()
 
@@ -73,8 +76,9 @@ def start_import_measurements_pipeline_for(subject, gsrn):
 
     :param str subject:
     :param str gsrn:
+    :rtype: celery.Task
     """
-    import_measurements \
+    return import_measurements \
         .s(subject=subject, gsrn=gsrn) \
         .apply_async()
 
@@ -100,8 +104,9 @@ def start_submit_measurement_pipeline(measurement, meteringpoint, session):
     :param MeteringPoint meteringpoint:
     :param sqlalchemy.orm.Session session:
     """
-    build_submit_measurement_pipeline(measurement, meteringpoint, session) \
-        .apply_async()
+    return build_submit_measurement_pipeline(
+        measurement, meteringpoint, session
+    ).apply_async()
 
 
 def build_submit_measurement_pipeline(measurement, meteringpoint, session):
@@ -139,7 +144,7 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
 
     # -- ON_MEASUREMENT_PUBLISHED webhooks -----------------------------------
 
-    on_measurement_published_subscriptions = webhook.get_subscriptions(
+    on_measurement_published_subscriptions = webhook_service.get_subscriptions(
         event=WebhookEvent.ON_MEASUREMENT_PUBLISHED,
         subject=meteringpoint.sub,
         session=session,
@@ -158,7 +163,7 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     # -- ON_GGO_ISSUED webhooks (only if PRODUCTION) -------------------------
 
     if meteringpoint.type is MeasurementType.PRODUCTION:
-        on_ggo_issued_subscriptions = webhook.get_subscriptions(
+        on_ggo_issued_subscriptions = webhook_service.get_subscriptions(
             event=WebhookEvent.ON_GGOS_ISSUED,
             subject=meteringpoint.sub,
             session=session,
@@ -182,10 +187,9 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     return chain(*tasks)
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.get_distinct_gsrn',
-    queue='import-measurements',
     default_retry_delay=5,
     max_retries=20,
 )
@@ -195,11 +199,12 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     task='get_distinct_gsrn',
 )
 @inject_session
-def get_distinct_gsrn(task, session):
+def get_distinct_gsrn(task, session=None):
     """
     Fetches all distinct GSRN numbers from the database, and starts a
     import_measurements() pipelines for each of them.
 
+    :param celery.Task task:
     :param sqlalchemy.orm.Session session:
     """
     __log_extra = {
@@ -225,10 +230,9 @@ def get_distinct_gsrn(task, session):
         group(tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.import_measurements',
-    queue='import-measurements',
     default_retry_delay=10,
     max_retries=50,
 )
@@ -282,16 +286,17 @@ def import_measurements(task, subject, gsrn, session):
 
     # Submit each measurement to ledger in parallel
     if measurements:
-        group([
+        tasks = [
             build_submit_measurement_pipeline(measurement, meteringpoint, session)
             for measurement in measurements
-        ]).apply_async()
+        ]
+
+        group(*tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.submit_to_ledger',
-    queue='import-measurements',
     default_retry_delay=SUBMIT_RETRY_DELAY,
     max_retries=SUBMIT_MAX_RETRIES,
 )
@@ -333,9 +338,12 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
         logger.exception('Failed to load Measurement from database, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
 
+    # Build batch
+    batch = measurement.build_batch()
+
     # Submit batch to ledger
     try:
-        handle = ledger.execute_batch(measurement.build_batch())
+        handle = ledger.execute_batch(batch)
     except ols.LedgerConnectionError as e:
         logger.exception('Failed to submit batch to ledger, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
@@ -357,10 +365,9 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
     return handle
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.poll_batch_status',
-    queue='import-measurements',
     default_retry_delay=POLL_RETRY_DELAY,
     max_retries=POLL_MAX_RETRIES,
 )
@@ -389,9 +396,6 @@ def poll_batch_status(task, handle, subject, gsrn, measurement_id):
         'task': 'poll_batch_status',
     }
 
-    class InvalidBatch(Exception):
-        pass
-
     # Get batch status from ledger
     try:
         response = ledger.get_batch_status(handle)
@@ -415,10 +419,9 @@ def poll_batch_status(task, handle, subject, gsrn, measurement_id):
         raise RuntimeError('Unknown batch status returned, should NOT have happened!')
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.update_measurement_status',
-    queue='import-measurements',
     default_retry_delay=POLL_RETRY_DELAY,
     max_retries=POLL_MAX_RETRIES,
 )
@@ -465,10 +468,9 @@ def update_measurement_status(task, subject, gsrn, measurement_id):
         raise task.retry(exc=e)
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.invoke_on_measurement_published_webhook',
-    queue='import-measurements',
     default_retry_delay=WEBHOOK_RETRY_DELAY,
     max_retries=WEBHOOK_MAX_RETRIES,
 )
@@ -509,7 +511,7 @@ def invoke_on_measurement_published_webhook(task, subject, gsrn, measurement_id,
 
     # Get webhook subscription from database
     try:
-        subscription = webhook.get_subscription(subscription_id, session)
+        subscription = webhook_service.get_subscription(subscription_id, session)
     except orm.exc.NoResultFound:
         raise
     except Exception as e:
@@ -518,7 +520,7 @@ def invoke_on_measurement_published_webhook(task, subject, gsrn, measurement_id,
 
     # Publish event to webhook
     try:
-        webhook.on_measurement_published(subscription, measurement)
+        webhook_service.on_measurement_published(subscription, measurement)
     except WebhookConnectionError as e:
         logger.exception('Failed to invoke webhook: ON_MEASUREMENT_PUBLISHED (Connection error), retrying...', extra=__log_extra)
         raise task.retry(exc=e)
@@ -527,10 +529,9 @@ def invoke_on_measurement_published_webhook(task, subject, gsrn, measurement_id,
         raise task.retry(exc=e)
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_measurements.invoke_on_ggo_issued_webhook',
-    queue='import-measurements',
     default_retry_delay=WEBHOOK_RETRY_DELAY,
     max_retries=WEBHOOK_MAX_RETRIES,
 )
@@ -575,7 +576,7 @@ def invoke_on_ggo_issued_webhook(task, subject, gsrn, measurement_id, subscripti
 
     # Get webhook subscription from database
     try:
-        subscription = webhook.get_subscription(subscription_id, session)
+        subscription = webhook_service.get_subscription(subscription_id, session)
     except orm.exc.NoResultFound:
         raise
     except Exception as e:
@@ -584,7 +585,7 @@ def invoke_on_ggo_issued_webhook(task, subject, gsrn, measurement_id, subscripti
 
     # Publish event to webhook
     try:
-        webhook.on_ggo_issued(subscription, measurement.ggo)
+        webhook_service.on_ggo_issued(subscription, measurement.ggo)
     except WebhookConnectionError as e:
         logger.exception('Failed to invoke webhook: ON_GGO_ISSUED (Connection error)', extra=__log_extra)
         raise task.retry(exc=e)

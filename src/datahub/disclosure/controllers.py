@@ -30,7 +30,9 @@ from .models import (
 
 class GetDisclosure(Controller):
     """
-    TODO
+    Get data for a disclosure. Data is returned in the same format as for
+    /measurements/summary, except this endpoint returns a list of measurements
+    and GGO summaries for each disclosed meteringpoint.
     """
     Request = md.class_schema(GetDisclosureRequest)
     Response = md.class_schema(GetDisclosureResponse)
@@ -180,7 +182,7 @@ class GetDisclosure(Controller):
 
 class GetDisclosureList(Controller):
     """
-    TODO
+    Returns a list of all the user's disclosures
     """
     Response = md.class_schema(GetDisclosureListResponse)
 
@@ -205,7 +207,13 @@ class GetDisclosureList(Controller):
 
 class CreateDisclosure(Controller):
     """
-    TODO
+    Create a new, publicly available, disclosure of data for one or more
+    MeteringPoints within a specific period of time. The "maxResolution"
+    parameter set a limit on how high a resolution the data is available
+    at when getting the disclosure. For instance, setting maxResolution=day
+    will not allow getting data on an hourly basis.
+
+    Returns the ID of the newly created disclosure.
     """
     Request = md.class_schema(CreateDisclosureRequest)
     Response = md.class_schema(CreateDisclosureResponse)
@@ -283,7 +291,7 @@ class CreateDisclosure(Controller):
 
 class DeleteDisclosure(Controller):
     """
-    TODO
+    Delete an existing disclosure
     """
     Request = md.class_schema(DeleteDisclosureRequest)
     Response = md.class_schema(DeleteDisclosureResponse)

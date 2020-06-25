@@ -119,8 +119,3 @@ class GetMeteringPointsResponse:
 class SetKeyRequest:
     gsrn: str
     key: str
-
-
-@dataclass
-class SetKeyResponse:
-    success: bool

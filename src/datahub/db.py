@@ -5,11 +5,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from .settings import DATABASE_URI, SQL_ALCHEMY_SETTINGS
 
 
-engine = create_engine(DATABASE_URI, **SQL_ALCHEMY_SETTINGS)
-configure_mappers()
 ModelBase = declarative_base()
-factory = sessionmaker(bind=engine, expire_on_commit=False)
-Session = scoped_session(factory)
+
+
+if DATABASE_URI:
+    engine = create_engine(DATABASE_URI, **SQL_ALCHEMY_SETTINGS)
+    configure_mappers()
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    Session = scoped_session(factory)
+else:
+    from sqlalchemy.orm import Session
 
 
 def make_session(*args, **kwargs):
