@@ -1,26 +1,21 @@
-import os
 import time
 import pytest
-from itertools import cycle
 import origin_ledger_sdk as ols
-
-from celery.backends.redis import RedisBackend
-from origin_ledger_sdk.ledger_connector import BatchStatusResponse
+from itertools import cycle
 from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
+from origin_ledger_sdk.ledger_connector import BatchStatusResponse
 
 from datahub.ggo import Ggo
 from datahub.measurements import Measurement, MeasurementQuery
 from datahub.meteringpoints import MeteringPoint, MeasurementType
-from datahub.tasks import celery_app
 from datahub.webhooks import WebhookSubscription, WebhookEvent
 from datahub.pipelines.import_measurements import (
-    start_import_measurements_pipeline,submit_to_ledger
+    start_import_measurements_pipeline
 )
 
 
 TASK_TIMEOUT = 30
-# PIPELINE_TIMEOUT = 60 * 5  # Seconds
 
 
 sub1 = 'SUB1'
