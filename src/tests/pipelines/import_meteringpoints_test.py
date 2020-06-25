@@ -1,12 +1,19 @@
 import time
+from itertools import cycle
+
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, DEFAULT
 
 from datahub.meteringpoints import MeteringPoint, MeasurementType
 from datahub.services.energytypes.service import EnergyTypeUnavailable
-from datahub.webhooks import WebhookSubscription, WebhookEvent
 from datahub.pipelines.import_meteringpoints import (
     start_import_meteringpoints_pipeline
+)
+from datahub.webhooks import (
+    WebhookSubscription,
+    WebhookEvent,
+    WebhookConnectionError,
+    WebhookError,
 )
 
 
@@ -131,6 +138,12 @@ def test__import_meteringpoints__happy_path__should_invoke_webhooks(
 
     importer_mock.import_meteringpoints.side_effect = __import_meteringpoints
 
+    on_meteringpoints_available_mock.side_effect = cycle((
+        WebhookConnectionError(),
+        WebhookError('', 0, ''),
+        DEFAULT,
+    ))
+
     # -- Act -----------------------------------------------------------------
 
     start_import_meteringpoints_pipeline(sub1, seeded_session)
@@ -138,11 +151,11 @@ def test__import_meteringpoints__happy_path__should_invoke_webhooks(
     # -- Assert --------------------------------------------------------------
 
     # # Wait for pipeline + linked tasks to finish
-    time.sleep(5)
+    time.sleep(10)
 
     # webhook_service.on_meteringpoints_available()
 
-    assert on_meteringpoints_available_mock.call_count == 1
+    assert on_meteringpoints_available_mock.call_count == 3
     assert on_meteringpoints_available_mock.call_args[0][0].id == subscription1.id
 
 

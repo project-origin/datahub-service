@@ -2,16 +2,21 @@ import time
 import pytest
 import origin_ledger_sdk as ols
 from itertools import cycle
-from unittest.mock import patch
+from unittest.mock import patch, DEFAULT
 from datetime import datetime, timezone, timedelta
 from origin_ledger_sdk.ledger_connector import BatchStatusResponse
 
 from datahub.ggo import Ggo
 from datahub.measurements import Measurement, MeasurementQuery
 from datahub.meteringpoints import MeteringPoint, MeasurementType
-from datahub.webhooks import WebhookSubscription, WebhookEvent
 from datahub.pipelines.import_measurements import (
     start_import_measurements_pipeline
+)
+from datahub.webhooks import (
+    WebhookSubscription,
+    WebhookEvent,
+    WebhookConnectionError,
+    WebhookError,
 )
 
 
@@ -192,6 +197,18 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
 
     importer_mock.import_measurements_for.side_effect = __import_measurements_for
 
+    on_ggo_issued_mock.side_effect = cycle((
+        WebhookConnectionError(),
+        WebhookError('', 0, ''),
+        DEFAULT,
+    ))
+
+    on_measurement_published_mock.side_effect = cycle((
+        WebhookConnectionError(),
+        WebhookError('', 0, ''),
+        DEFAULT,
+    ))
+
     # Executing batch: Raises Ledger exceptions a few times, then returns Handle
     ledger_mock.execute_batch.side_effect = cycle((
         ols.LedgerConnectionError(),
@@ -235,9 +252,9 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
 
     # -- webhook_service.on_measurement_published()
 
-    assert on_measurement_published_mock.call_count == 8
+    assert on_measurement_published_mock.call_count == 8 * 3
 
-    assert len([
+    assert any([
         args for args in on_measurement_published_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_MEASUREMENT_PUBLISHED
@@ -245,9 +262,9 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Measurement)
         and args[0][1].sub == sub1
         and args[0][1].gsrn == gsrn1
-    ]) == 2
+    ])
 
-    assert len([
+    assert any([
         args for args in on_measurement_published_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_MEASUREMENT_PUBLISHED
@@ -255,9 +272,9 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Measurement)
         and args[0][1].sub == sub1
         and args[0][1].gsrn == gsrn2
-    ]) == 2
+    ])
 
-    assert len([
+    assert any([
         args for args in on_measurement_published_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_MEASUREMENT_PUBLISHED
@@ -265,9 +282,9 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Measurement)
         and args[0][1].sub == sub2
         and args[0][1].gsrn == gsrn3
-    ]) == 2
+    ])
 
-    assert len([
+    assert any([
         args for args in on_measurement_published_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_MEASUREMENT_PUBLISHED
@@ -275,13 +292,13 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Measurement)
         and args[0][1].sub == sub2
         and args[0][1].gsrn == gsrn4
-    ]) == 2
+    ])
 
     # -- webhook_service.on_ggo_issued()
 
-    assert on_ggo_issued_mock.call_count == 4
+    assert on_ggo_issued_mock.call_count == 4 * 3
 
-    assert len([
+    assert any([
         args for args in on_ggo_issued_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_GGOS_ISSUED
@@ -289,9 +306,9 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Ggo)
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().sub == sub1
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().gsrn == gsrn1
-    ]) == 2
+    ])
 
-    assert len([
+    assert any([
         args for args in on_ggo_issued_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
         and args[0][0].event == WebhookEvent.ON_GGOS_ISSUED
@@ -299,4 +316,4 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
         and isinstance(args[0][1], Ggo)
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().sub == sub2
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().gsrn == gsrn3
-    ]) == 2
+    ])
