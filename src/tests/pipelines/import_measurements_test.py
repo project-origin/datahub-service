@@ -20,9 +20,6 @@ from datahub.webhooks import (
 )
 
 
-TASK_TIMEOUT = 30
-
-
 sub1 = 'SUB1'
 sub2 = 'SUB2'
 
