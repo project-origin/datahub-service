@@ -6,13 +6,11 @@ One entrypoint exists:
     start_import_meteringpoints_pipeline()
 
 """
-from celery import group, chain
 from sqlalchemy import orm
+from celery import group, chain, shared_task
 
 from datahub import logger
-from datahub.tasks import celery_app
 from datahub.db import inject_session, atomic
-from datahub.services.eloverblik import EloverblikService
 from datahub.meteringpoints import MeteringPointImporter
 from datahub.services.energytypes.service import EnergyTypeUnavailable
 from datahub.webhooks import (
@@ -29,9 +27,8 @@ MAX_RETRIES = (24 * 60 * 60) / RETRY_DELAY
 
 
 # Services
-service = EloverblikService()
 importer = MeteringPointImporter()
-webhook = WebhookService()
+webhook_service = WebhookService()
 
 
 def start_import_meteringpoints_pipeline(subject, session):
@@ -50,7 +47,7 @@ def start_import_meteringpoints_pipeline(subject, session):
         import_meteringpoints.s(subject=subject),
     ]
 
-    subscriptions = webhook.get_subscriptions(
+    subscriptions = webhook_service.get_subscriptions(
         event=WebhookEvent.ON_METERINGPOINTS_AVAILABLE,
         subject=subject,
         session=session,
@@ -68,7 +65,7 @@ def start_import_meteringpoints_pipeline(subject, session):
     chain(*tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_meteringpoints.import_meteringpoints',
     default_retry_delay=RETRY_DELAY,
@@ -108,7 +105,7 @@ def import_meteringpoints(task, subject):
         raise task.retry(exc=e)
 
 
-@celery_app.task(
+@shared_task(
     bind=True,
     name='import_meteringpoints.invoke_webhook',
     default_retry_delay=RETRY_DELAY,
@@ -136,7 +133,7 @@ def invoke_webhook(task, subject, subscription_id, session):
 
     # Get webhook subscription from database
     try:
-        subscription = webhook.get_subscription(subscription_id, session)
+        subscription = webhook_service.get_subscription(subscription_id, session)
     except orm.exc.NoResultFound:
         raise
     except Exception as e:
@@ -145,7 +142,7 @@ def invoke_webhook(task, subject, subscription_id, session):
 
     # Publish event to webhook
     try:
-        webhook.on_meteringpoints_available(subscription)
+        webhook_service.on_meteringpoints_available(subscription)
     except WebhookConnectionError as e:
         logger.exception('Failed to invoke webhook: ON_METERINGPOINTS_AVAILABLE (Connection error)', extra=__log_extra)
         raise task.retry(exc=e)

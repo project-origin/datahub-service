@@ -178,7 +178,7 @@ def seeded_session(session):
 @patch('datahub.pipelines.import_measurements.invoke_on_measurement_published_webhook.default_retry_delay', 0)
 @patch('datahub.pipelines.import_measurements.invoke_on_ggo_issued_webhook.default_retry_delay', 0)
 @pytest.mark.usefixtures('celery_worker')
-def test__handle_composed_ggo__happy_path__should_publish_measurements_and_issue_ggos_and_invoke_webhooks(
+def test__measurement_published__happy_path__should_publish_measurements_and_issue_ggos_and_invoke_webhooks(
         on_ggo_issued_mock, on_measurement_published_mock, importer_mock,
         ledger_mock, build_batch_mock, make_session_mock, seeded_session):
 
