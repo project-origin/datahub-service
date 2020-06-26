@@ -74,8 +74,11 @@ class GetDisclosure(Controller):
                 disclosure, begin_range, resolution, session)
 
         # Data labels
-        labels = list(LabelRange(
-            begin_range.begin, begin_range.end, resolution))
+        if resolution is SummaryResolution.all:
+            labels = ['All-time']
+        else:
+            labels = list(LabelRange(
+                begin_range.begin, begin_range.end, resolution))
 
         return GetDisclosureResponse(
             success=True,
