@@ -96,7 +96,7 @@ subscription2 = WebhookSubscription(
 
 subscription1 = WebhookSubscription(
     id=2,
-    event=WebhookEvent.ON_GGO_ISSUED,
+    event=WebhookEvent.ON_GGOS_ISSUED,
     subject=sub1,
     url='http://something.com',
     secret='something',
@@ -112,7 +112,7 @@ subscription4 = WebhookSubscription(
 
 subscription3 = WebhookSubscription(
     id=4,
-    event=WebhookEvent.ON_GGO_ISSUED,
+    event=WebhookEvent.ON_GGOS_ISSUED,
     subject=sub2,
     url='http://something.com',
     secret='something',
@@ -298,7 +298,7 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
     assert any([
         args for args in on_ggo_issued_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
-        and args[0][0].event == WebhookEvent.ON_GGO_ISSUED
+        and args[0][0].event == WebhookEvent.ON_GGOS_ISSUED
         and args[0][0].subject == sub1
         and isinstance(args[0][1], Ggo)
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().sub == sub1
@@ -308,7 +308,7 @@ def test__measurement_published__happy_path__should_publish_measurements_and_iss
     assert any([
         args for args in on_ggo_issued_mock.call_args_list
         if isinstance(args[0][0], WebhookSubscription)
-        and args[0][0].event == WebhookEvent.ON_GGO_ISSUED
+        and args[0][0].event == WebhookEvent.ON_GGOS_ISSUED
         and args[0][0].subject == sub2
         and isinstance(args[0][1], Ggo)
         and MeasurementQuery(seeded_session).has_id(args[0][1].measurement_id).one().sub == sub2
