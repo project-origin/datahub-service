@@ -157,8 +157,7 @@ class WebhookService(object):
             schema=md.class_schema(OnGgoIssuedRequest)(),
             request=OnGgoIssuedRequest(
                 sub=subscription.subject,
-                gsrn=ggo.gsrn,
-                begin=ggo.begin,
+                ggo=ggo,
             )
         )
 
