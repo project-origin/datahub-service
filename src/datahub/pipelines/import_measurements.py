@@ -164,7 +164,7 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
 
     if meteringpoint.type is MeasurementType.PRODUCTION:
         on_ggo_issued_subscriptions = webhook_service.get_subscriptions(
-            event=WebhookEvent.ON_GGOS_ISSUED,
+            event=WebhookEvent.ON_GGO_ISSUED,
             subject=meteringpoint.sub,
             session=session,
         )
