@@ -1,9 +1,9 @@
 import sqlalchemy as sa
 from enum import Enum
-from datetime import datetime
 from dataclasses import dataclass
 
 from datahub.db import ModelBase
+from datahub.ggo.models import MappedGgo
 from datahub.measurements import MappedMeasurement
 
 
@@ -16,8 +16,7 @@ class OnMeasurementPublishedRequest:
 @dataclass
 class OnGgoIssuedRequest:
     sub: str
-    gsrn: str
-    begin: datetime
+    ggo: MappedGgo
 
 
 @dataclass

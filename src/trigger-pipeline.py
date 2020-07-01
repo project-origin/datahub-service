@@ -1,7 +1,10 @@
+import sys
+import csv
 import fire
 from sqlalchemy.orm.exc import NoResultFound
 
 from datahub.db import inject_session
+from datahub.technology import Technology
 from datahub.meteringpoints import MeteringPointQuery
 from datahub.pipelines import (
     start_import_meteringpoints_pipeline,
@@ -33,6 +36,14 @@ class PipelineTriggers(object):
     @inject_session
     def import_meteringpoints_for(self, subject, session):
         start_import_meteringpoints_pipeline(subject, session)
+
+    @inject_session
+    def export_technologies(self, session):
+        writer = csv.writer(sys.stdout)
+        writer.writerow(('technology_code', 'fuel_code', 'technology'))
+
+        for t in session.query(Technology):
+            writer.writerow((t.technology_code, t.fuel_code, t.technology))
 
 
 if __name__ == '__main__':

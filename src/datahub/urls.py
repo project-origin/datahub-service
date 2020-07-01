@@ -42,8 +42,8 @@ urls = (
     # Webhooks
     ('/webhook/on-measurement-published/subscribe', webhooks.Subscribe(WebhookEvent.ON_MEASUREMENT_PUBLISHED)),
     ('/webhook/on-measurement-published/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_MEASUREMENT_PUBLISHED)),
-    ('/webhook/on-ggos-issued/subscribe', webhooks.Subscribe(WebhookEvent.ON_GGOS_ISSUED)),
-    ('/webhook/on-ggos-issued/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_GGOS_ISSUED)),
+    ('/webhook/on-ggo-issued/subscribe', webhooks.Subscribe(WebhookEvent.ON_GGOS_ISSUED)),
+    ('/webhook/on-ggo-issued/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_GGOS_ISSUED)),
     ('/webhook/on-meteringpoints-available/subscribe', webhooks.Subscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
     ('/webhook/on-meteringpoints-available/unsubscribe', webhooks.Unsubscribe(WebhookEvent.ON_METERINGPOINTS_AVAILABLE)),
 
