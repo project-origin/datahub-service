@@ -960,31 +960,38 @@ paths:
 
 
 
-  /webhook/on-ggos-issued/subscribe:
+  /webhook/on-ggo-issued/subscribe:
     post:
-      summary: Subscribe to webhook event ON_GGOS_ISSUED
+      summary: Subscribe to webhook event ON_GGO_ISSUED
       description: |
-        Subscribe to webhook event ON_GGOS_ISSUED.
-        
-        This event is fired whenever a new GGO has been issued for the user's MeteringPoints.
+        Subscribe to webhook event ON_GGO_ISSUED.
+
+        This event is fired whenever a new GGO has been issued for any of the user's MeteringPoints.
 
         Webhook events are expected to respond with a HTTP status 200. Any responses other than HTTP status 200 are retried every 60 seconds for up to around 24 hours. Hereafter retrying is cancelled.
-        
+
         ## Security using HMAC
-        
+
         When subscribing for a webhook event on behalf of a user, the service must provide a secret string. This is used when invoking the receiving service using HMAC Authentication. When firing the webhook, DataHubServices provide a SHA256 encryptet hash of the body using the provided secret in the "x-hub-signature" header.
-        
+
         This implementation is a replica of how [GitHub secures their webhooks](https://developer.github.com/webhooks/securing/).
-        
+
         ## Webhook body
-        
-        ON_GGOS_ISSUED webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub), the GSRN number of the MeteringPoint, and the GGO's begin. See example:
-        
+
+        ON_GGO_ISSUED webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub) along with the Ggo. See example:
+
         ```
         {
             "sub": "619ed366-8f3b-431b-bdea-fb489df75ebd",
-            "gsrn": "123456789012345",
-            "begin": "2020-01-01 00:00:00",
+            "ggo": {
+              "address": "849c0b80c72ff6aed09e7d06f9f8474b577545870973674ba364fa40f6c6e2da0a026b",
+              "sector": "DK1",
+              "begin": "2020-01-01 00:00:00",
+              "end": "2020-01-01 01:00:00",
+              "amount": 10000,
+              "technologyCode": "T010000",
+              "fuelCode": "F01040100"
+            }
         }
         ```
       security:
@@ -1011,7 +1018,7 @@ paths:
                   example: 'https://my-website.com/on-ggo-issued'
                 secret:
                   type: string
-                  description: A secret which is used to 
+                  description: A secret which is used to
                   example: 'a secret string only known by my website or service'
       responses:
         '200':
@@ -1026,11 +1033,11 @@ paths:
                     example: true
 
 
-  /webhook/on-ggos-issued/unsubscribe:
+  /webhook/on-ggo-issued/unsubscribe:
     post:
-      summary: Unsubscribe from webhook event ON_GGOS_ISSUED
+      summary: Unsubscribe from webhook event ON_GGO_ISSUED
       description: |
-        Unsubscribe from webhook event ON_GGOS_ISSUED.
+        Unsubscribe from webhook event ON_GGO_ISSUED.
         
         The provided URL and secret must match that used when subscribing.
       security:
