@@ -2,22 +2,23 @@
 TODO write this
 """
 import origin_ledger_sdk as ols
-from celery import chord, group
+from sqlalchemy import orm
+from celery import chord, group, shared_task
 
 from datahub import logger
 from datahub.db import atomic, inject_session
-from datahub.disclosure import Disclosure, DisclosureState, DisclosureSettlement, DisclosureRetiredGgo
 from datahub.measurements import Measurement
-from datahub.settings import LEDGER_URL, DEBUG
 from datahub.tasks import celery_app
-from datahub.webhooks import WebhookService
-from datahub.services.eloverblik import EloverblikService
-from datahub.meteringpoints import MeteringPointImporter
+from datahub.disclosure import Disclosure, DisclosureState, DisclosureCompiler
 
 
-service = EloverblikService()
-importer = MeteringPointImporter()
-webhook = WebhookService()
+# Settings
+RETRY_DELAY = 15
+MAX_RETRIES = (12 * 60 * 60) / RETRY_DELAY
+
+
+# Services
+compiler = DisclosureCompiler()
 
 
 def start_compile_disclosure_pipeline(disclosure):
@@ -68,49 +69,57 @@ def get_disclosures(session):
     group(*tasks).apply_async()
 
 
-@celery_app.task(
+@shared_task(
+    bind=True,
     name='compile_disclosure.get_measurements',
     queue='disclosure',
-    # autoretry_for=(Exception,),
-    # retry_backoff=2,
-    # max_retries=5,
+    default_retry_delay=RETRY_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Starting to compile Disclosure',
     pipeline='compile_disclosure',
     task='get_measurements',
 )
-@atomic
-def get_measurements(subject, disclosure_id, session):
+def get_measurements(task, subject, disclosure_id):
     """
+    :param celery.Task task:
     :param str subject:
     :param int disclosure_id:
-    :param Session session:
     """
-    disclosure = session.query(Disclosure) \
-        .filter(Disclosure.id == disclosure_id) \
-        .one_or_none()
+    __log_extra = {
+        'subject': subject,
+        'disclosure_id': disclosure_id,
+        'pipeline': 'compile_disclosure',
+        'task': 'get_measurements',
+    }
 
-    if disclosure is None:
-        logger.error('Failed to compile: Disclosure not found', extra={
-            'subject': subject,
-            'disclosure_id': disclosure_id,
-            'pipeline': 'disclosure',
-            'task': 'get_measurements',
-        })
-        return
+    @atomic
+    def __get_measurements_and_update_disclosure_state(session):
+        disclosure = session.query(Disclosure) \
+            .filter(Disclosure.id == disclosure_id) \
+            .one()
 
-    tasks = []
+        disclosure.state = DisclosureState.PROCESSING
 
-    for measurement in disclosure.get_measurements():
-        tasks.append(get_settlement_and_ggos_from_ledger.si(
+        return disclosure.get_measurements()
+
+    try:
+        measurements = __get_measurements_and_update_disclosure_state()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Disclosure Measurements from database, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
+
+    tasks = [
+        get_settlement_and_ggos_from_ledger.si(
             subject=subject,
             disclosure_id=disclosure_id,
             measurement_id=measurement.id,
-        ))
-
-    # Update Disclosure state
-    disclosure.state = DisclosureState.PROCESSING
+        )
+        for measurement in measurements
+    ]
 
     # Start tasks with on-complete callback (update_disclosure_state)
     chord(tasks)(update_disclosure_state.si(
@@ -120,11 +129,11 @@ def get_measurements(subject, disclosure_id, session):
 
 
 @celery_app.task(
+    bind=True,
     name='compile_disclosure.get_settlement_and_ggos_from_ledger',
     queue='disclosure',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    max_retries=5,
+    default_retry_delay=RETRY_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Importing settlement and GGOs from ledger',
@@ -132,124 +141,91 @@ def get_measurements(subject, disclosure_id, session):
     task='get_settlement_and_ggos_from_ledger',
 )
 @atomic
-def get_settlement_and_ggos_from_ledger(subject, disclosure_id, measurement_id, session):
+def get_settlement_and_ggos_from_ledger(task, subject, disclosure_id, measurement_id, session):
     """
+    :param celery.Task task:
     :param str subject:
     :param int disclosure_id:
     :param int measurement_id:
     :param Session session:
     """
-    # Get disclosure
-    disclosure = session.query(Disclosure) \
-        .filter(Disclosure.id == disclosure_id) \
-        .one_or_none()
+    __log_extra = {
+        'subject': subject,
+        'disclosure_id': disclosure_id,
+        'measurement_id': measurement_id,
+        'pipeline': 'compile_disclosure',
+        'task': 'get_settlement_and_ggos_from_ledger',
+    }
 
-    if disclosure is None:
-        logger.error('Failed to compile: Disclosure not found', extra={
-            'subject': subject,
-            'disclosure_id': disclosure_id,
-            'measurement_id': measurement_id,
-            'pipeline': 'disclosure',
-            'task': 'get_settlement_and_ggos_from_ledger',
-        })
-        return
-
-    # Get measurement
-    measurement = session.query(Measurement) \
-        .filter(Measurement.id == measurement_id) \
-        .one_or_none()
-
-    if measurement is None:
-        logger.error('Failed to compile: Measurement not found', extra={
-            'subject': subject,
-            'disclosure_id': disclosure_id,
-            'measurement_id': measurement_id,
-            'pipeline': 'disclosure',
-            'task': 'get_settlement_and_ggos_from_ledger',
-        })
-        return
-
-    # Get settlement from ledger
-    ledger = ols.Ledger(LEDGER_URL, verify=not DEBUG)
-
+    # Get Disclosure from DB
     try:
-        ledger_settlement = ledger.get_settlement(measurement.settlement_address)
-    except ols.LedgerException as e:
-        if e.code == 75:
-            # No settlement exists (nothing at the requested address)
-            return
-        else:
-            # Arbitrary ledger exception, let it bubble up
-            raise
+        disclosure = session.query(Disclosure) \
+            .filter(Disclosure.id == disclosure_id) \
+            .one()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Disclosure from database, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
 
-    # Get settlement from database
-    settlement = session.query(DisclosureSettlement) \
-        .filter(DisclosureSettlement.disclosure_id == disclosure.id) \
-        .filter(DisclosureSettlement.address == measurement.settlement_address) \
-        .one_or_none()
+    # Get Measurement from DB
+    try:
+        measurement = session.query(Measurement) \
+            .filter(Measurement.id == measurement_id) \
+            .one_or_none()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to load Measurement from database, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
 
-    # Create new settlement if not existing in database
-    if settlement is None:
-        settlement = DisclosureSettlement(
-            disclosure=disclosure,
-            measurement=measurement,
-            address=ledger_settlement.address,
-        )
-        session.add(settlement)
-
-    for part in ledger_settlement.parts:
-        count = session.query(DisclosureRetiredGgo) \
-            .filter(DisclosureRetiredGgo.settlement_id == settlement.id) \
-            .filter(DisclosureRetiredGgo.address == part.ggo) \
-            .count()
-
-        if count == 0:
-            ledger_ggo = ledger.get_ggo(part.ggo)
-
-            session.add(DisclosureRetiredGgo(
-                settlement=settlement,
-                address=ledger_ggo.address,
-                amount=ledger_ggo.amount,
-                begin=ledger_ggo.begin,
-                end=ledger_ggo.end,
-                sector=ledger_ggo.sector,
-                technology_code=ledger_ggo.tech_type,
-                fuel_code=ledger_ggo.fuel_type,
-            ))
+    # Synchronize disclosure for this measurement
+    try:
+        # TODO what if this fails otherwise, for instance DB connection errors?
+        compiler.sync_for_measurement(disclosure, measurement, session)
+    except ols.LedgerConnectionError as e:
+        logger.exception('Failed to connect to ledger, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
 
 
 @celery_app.task(
+    bind=True,
     name='compile_disclosure.update_disclosure_state',
     queue='disclosure',
-    autoretry_for=(Exception,),
-    retry_backoff=2,
-    max_retries=5,
+    default_retry_delay=RETRY_DELAY,
+    max_retries=MAX_RETRIES,
 )
 @logger.wrap_task(
     title='Importing settlement and GGOs from ledger',
     pipeline='compile_disclosure',
     task='update_disclosure_state',
 )
-@atomic
-def update_disclosure_state(subject, disclosure_id, session):
+def update_disclosure_state(task, subject, disclosure_id):
     """
+    :param celery.Task task:
     :param str subject:
     :param int disclosure_id:
-    :param Session session:
     """
+    __log_extra = {
+        'subject': subject,
+        'disclosure_id': disclosure_id,
+        'pipeline': 'compile_disclosure',
+        'task': 'update_disclosure_state',
+    }
 
-    # Get disclosure
-    disclosure = session.query(Disclosure) \
-        .filter(Disclosure.id == disclosure_id) \
-        .one_or_none()
+    @atomic
+    def __update_state(session):
+        disclosure = session.query(Disclosure) \
+            .filter(Disclosure.id == disclosure_id) \
+            .one()
 
-    if disclosure is None:
-        logger.error('Failed to compile: Disclosure not found', extra={
-            'subject': subject,
-            'disclosure_id': disclosure_id,
-            'pipeline': 'disclosure',
-            'task': 'get_settlement_and_ggos_from_ledger',
-        })
-        return
+        disclosure.state = DisclosureState.AVAILABLE
 
-    disclosure.state = DisclosureState.AVAILABLE
+    # Get Disclosure from DB
+    try:
+        __update_state()
+    except orm.exc.NoResultFound:
+        raise
+    except Exception as e:
+        logger.exception('Failed to update Disclosure state to AVAILABLE, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
