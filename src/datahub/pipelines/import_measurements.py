@@ -116,6 +116,7 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     :param Measurement measurement:
     :param MeteringPoint meteringpoint:
     :param sqlalchemy.orm.Session session:
+    :rtype: celery.chain
     """
     tasks = [
         # Submit Batch with Measurement (and Ggo if PRODUCTION)
@@ -285,13 +286,19 @@ def import_measurements(task, subject, gsrn, session):
         raise task.retry(exc=e)
 
     # Submit each measurement to ledger in parallel
-    if measurements:
-        tasks = [
-            build_submit_measurement_pipeline(measurement, meteringpoint, session)
-            for measurement in measurements
-        ]
+    for measurement in measurements:
+        task = build_submit_measurement_pipeline(
+            measurement, meteringpoint, session)
 
-        group(*tasks).apply_async()
+        task.apply_async()
+
+    # if measurements:
+    #     tasks = [
+    #         build_submit_measurement_pipeline(measurement, meteringpoint, session)
+    #         for measurement in measurements
+    #     ]
+    #
+    #     group(*tasks).apply_async()
 
 
 @shared_task(
