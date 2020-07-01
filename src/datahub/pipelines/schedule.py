@@ -43,10 +43,10 @@ def setup_periodic_tasks(sender, **kwargs):
 
     # RESUBMIT UNPUBLISHED MEASUREMENTS TO THE LEDGER
     # Executes every hour
-    sender.add_periodic_task(
-        crontab(hour='*/1', minute=0),
-        __resubmit_measurements.s(),
-    )
+    # sender.add_periodic_task(
+    #     crontab(hour='*/1', minute=0),
+    #     __resubmit_measurements.s(),
+    # )
 
     # COMPILE DISCLOSURES
     # Executes every night at 03:00
