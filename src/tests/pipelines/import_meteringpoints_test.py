@@ -88,7 +88,7 @@ meteringpoint4 = MeteringPoint(
 
 subscription1 = WebhookSubscription(
     id=1,
-    event=WebhookEvent.ON_METERINGPOINTS_AVAILABLE,
+    event=WebhookEvent.ON_METERINGPOINT_AVAILABLE,
     subject=sub1,
     url='http://something-else.com',
     secret='something',
@@ -96,7 +96,7 @@ subscription1 = WebhookSubscription(
 
 subscription2 = WebhookSubscription(
     id=2,
-    event=WebhookEvent.ON_METERINGPOINTS_AVAILABLE,
+    event=WebhookEvent.ON_METERINGPOINT_AVAILABLE,
     subject=sub2,
     url='http://something.com',
     secret='something',
@@ -122,12 +122,14 @@ def seeded_session(session):
 
 @patch('datahub.db.make_session')
 @patch('datahub.pipelines.import_meteringpoints.importer')
-@patch('datahub.pipelines.import_meteringpoints.webhook_service.on_meteringpoints_available')
+@patch('datahub.pipelines.import_meteringpoints.webhook_service.on_meteringpoint_available')
+@patch('datahub.pipelines.import_meteringpoints.energtype_service.get_energy_type')
 @patch('datahub.pipelines.import_meteringpoints.import_meteringpoints.default_retry_delay', 0)
+@patch('datahub.pipelines.import_meteringpoints.import_energy_type.default_retry_delay', 0)
 @patch('datahub.pipelines.import_meteringpoints.invoke_webhook.default_retry_delay', 0)
 @pytest.mark.usefixtures('celery_worker')
 def test__import_meteringpoints__happy_path__should_invoke_webhooks(
-        on_meteringpoints_available_mock, importer_mock, make_session_mock, seeded_session):
+        get_energy_type_mock, on_meteringpoint_available_mock, importer_mock, make_session_mock, seeded_session):
 
     make_session_mock.return_value = seeded_session
 
@@ -138,7 +140,9 @@ def test__import_meteringpoints__happy_path__should_invoke_webhooks(
 
     importer_mock.import_meteringpoints.side_effect = __import_meteringpoints
 
-    on_meteringpoints_available_mock.side_effect = cycle((
+    get_energy_type_mock.return_value = ('T010101', 'F02020202')
+
+    on_meteringpoint_available_mock.side_effect = cycle((
         WebhookConnectionError(),
         WebhookError('', 0, ''),
         DEFAULT,
@@ -146,38 +150,53 @@ def test__import_meteringpoints__happy_path__should_invoke_webhooks(
 
     # -- Act -----------------------------------------------------------------
 
-    start_import_meteringpoints_pipeline(sub1, seeded_session)
+    start_import_meteringpoints_pipeline(sub1)
 
     # -- Assert --------------------------------------------------------------
 
-    # # Wait for pipeline + linked tasks to finish
+    # Wait for pipeline + linked tasks to finish
     time.sleep(10)
 
-    # webhook_service.on_meteringpoints_available()
-
-    assert on_meteringpoints_available_mock.call_count == 3
-    assert on_meteringpoints_available_mock.call_args[0][0].id == subscription1.id
+    assert on_meteringpoint_available_mock.call_count == 3 * 2
+    assert on_meteringpoint_available_mock.call_args[0][0].id == subscription1.id
 
 
 @patch('datahub.db.make_session')
 @patch('datahub.pipelines.import_meteringpoints.importer')
-@patch('datahub.pipelines.import_meteringpoints.webhook_service.on_meteringpoints_available')
+@patch('datahub.pipelines.import_meteringpoints.webhook_service.on_meteringpoint_available')
+@patch('datahub.pipelines.import_meteringpoints.energtype_service.get_energy_type')
 @patch('datahub.pipelines.import_meteringpoints.import_meteringpoints.default_retry_delay', 0)
+@patch('datahub.pipelines.import_meteringpoints.import_energy_type.default_retry_delay', 0)
 @patch('datahub.pipelines.import_meteringpoints.invoke_webhook.default_retry_delay', 0)
 @pytest.mark.usefixtures('celery_worker')
 def test__import_meteringpoints__importer_raises_EnergyTypeUnavailable__should_NOT_invoke_webhooks(
-        on_meteringpoints_available_mock, importer_mock, make_session_mock, seeded_session):
+        get_energy_type_mock, on_meteringpoint_available_mock, importer_mock, make_session_mock, seeded_session):
 
     make_session_mock.return_value = seeded_session
-    importer_mock.import_meteringpoints.side_effect = EnergyTypeUnavailable
+
+    # -- Arrange -------------------------------------------------------------
+
+    def __import_meteringpoints(subject, session):
+        return session.query(MeteringPoint).filter_by(sub=subject).all()
+
+    importer_mock.import_meteringpoints.side_effect = __import_meteringpoints
+
+    get_energy_type_mock.side_effect = EnergyTypeUnavailable()
+
+    on_meteringpoint_available_mock.side_effect = cycle((
+        WebhookConnectionError(),
+        WebhookError('', 0, ''),
+        DEFAULT,
+    ))
 
     # -- Act -----------------------------------------------------------------
 
-    start_import_meteringpoints_pipeline(sub1, seeded_session)
-    start_import_meteringpoints_pipeline(sub2, seeded_session)
+    start_import_meteringpoints_pipeline(sub1)
 
     # -- Assert --------------------------------------------------------------
 
+    # Wait for pipeline + linked tasks to finish
     time.sleep(10)
 
-    on_meteringpoints_available_mock.assert_not_called()
+    assert on_meteringpoint_available_mock.call_count == 3 * 1
+    assert on_meteringpoint_available_mock.call_args[0][0].id == subscription1.id
