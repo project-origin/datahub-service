@@ -25,7 +25,6 @@ def start_resubmit_measurements_pipeline():
 
 @celery_app.task(
     name='resubmit_measurements.resubmit_measurements',
-    queue='import-measurements',
     autoretry_for=(Exception,),
     retry_backoff=2,
     max_retries=5,
