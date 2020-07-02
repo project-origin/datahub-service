@@ -11,11 +11,7 @@ from celery import group, chain, shared_task
 
 from datahub import logger
 from datahub.db import inject_session, atomic
-from datahub.meteringpoints import (
-    MeteringPointImporter,
-    MeasurementType,
-    MeteringPointQuery,
-)
+from datahub.meteringpoints import MeteringPointImporter, MeteringPointQuery
 from datahub.services.energytypes import (
     EnergyTypeService,
     EnergyTypeUnavailable,
