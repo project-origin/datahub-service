@@ -1,1 +1,1 @@
-from .service import EnergyTypeService
+from .service import *

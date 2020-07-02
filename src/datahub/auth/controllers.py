@@ -1,6 +1,5 @@
 import marshmallow_dataclass as md
 
-from datahub.db import inject_session
 from datahub.cache import redis
 from datahub.settings import PROJECT_URL
 from datahub.http import Controller, redirect
@@ -62,19 +61,16 @@ class OnboardingCallback(Controller):
 
     Request = md.class_schema(OnboardingCallbackRequest)
 
-    @inject_session
-    def handle_request(self, request, session):
+    def handle_request(self, request):
         """
         :param OnboardingCallbackRequest request:
-        :param sqlalchemy.orm.Session session:
         :rtype: flask.Response
         """
         redis_key = 'onboarding-return-url-%s' % request.sub
         return_url = redis.get(redis_key)
 
+        start_import_meteringpoints_pipeline(request.sub)
+
         if return_url:
-            start_import_meteringpoints_pipeline(request.sub, session)
-
             redis.delete(redis_key)
-
             return redirect(return_url, 303)

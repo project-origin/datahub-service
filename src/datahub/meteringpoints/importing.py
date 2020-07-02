@@ -1,28 +1,20 @@
 from functools import partial
 
 from datahub import logger
-from datahub.db import atomic
 from datahub.services import eloverblik as e
-from datahub.services.energytypes import EnergyTypeService
 
 from .queries import MeteringPointQuery
 from .models import MeteringPoint, MeasurementType
 
 
+# Services
 eloverblik_service = e.EloverblikService()
-energtype_service = EnergyTypeService()
 
 
 class MeteringPointImporter(object):
     """
     Helper class for importing MeteringPoints from ElOverblik.
-
-    Does necessary mapping between data, including fetching
-    technology- and fuel code from EnergyTypeService.
-
-    TODO move atomic transaction away from this class...
     """
-
     def import_meteringpoints(self, sub, session):
         """
         Imports all meteringpoints for the subject from ElOverblik.
@@ -87,21 +79,13 @@ class MeteringPointImporter(object):
         :param e.MeteringPoint imported_meteringpoint:
         :rtype: MeteringPoint
         """
-        type = self.get_type(imported_meteringpoint)
-
-        if type is MeasurementType.PRODUCTION:
-            technology_code, fuel_code = self.get_technology(
-                imported_meteringpoint.gsrn)
-        else:
-            technology_code, fuel_code = None, None
-
         return MeteringPoint(
             sub=sub,
             gsrn=imported_meteringpoint.gsrn,
-            type=type,
+            type=self.get_type(imported_meteringpoint),
             sector=self.get_sector(imported_meteringpoint),
-            technology_code=technology_code,
-            fuel_code=fuel_code,
+            technology_code=None,
+            fuel_code=None,
             street_code=imported_meteringpoint.street_code,
             street_name=imported_meteringpoint.street_name,
             building_number=imported_meteringpoint.building_number,
@@ -109,17 +93,6 @@ class MeteringPointImporter(object):
             postcode=imported_meteringpoint.postcode,
             municipality_code=imported_meteringpoint.municipality_code,
         )
-
-    def get_technology(self, gsrn):
-        """
-        Fetches technology- and fuel code from EnergyTypeService
-        for a GSRN number.
-
-        :param str gsrn:
-        :returns: Tuple of (technology_code, fuel_code)
-        :rtype: (str, str)
-        """
-        return energtype_service.get_energy_type(gsrn)
 
     def get_type(self, imported_meteringpoint):
         """
