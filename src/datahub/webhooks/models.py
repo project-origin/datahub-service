@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datahub.db import ModelBase
 from datahub.ggo.models import MappedGgo
 from datahub.measurements import MappedMeasurement
+from datahub.meteringpoints import MappedMeteringPoint
 
 
 @dataclass
@@ -20,14 +21,16 @@ class OnGgoIssuedRequest:
 
 
 @dataclass
-class OnMeteringointsAvailableRequest:
+class OnMeteringPointAvailableRequest:
     sub: str
+    meteringpoint: MappedMeteringPoint
 
 
 class WebhookEvent(Enum):
     ON_MEASUREMENT_PUBLISHED = 'ON_MEASUREMENT_PUBLISHED'
     ON_GGOS_ISSUED = 'ON_GGOS_ISSUED'
     ON_METERINGPOINTS_AVAILABLE = 'ON_METERINGPOINTS_AVAILABLE'
+    ON_METERINGPOINT_AVAILABLE = 'ON_METERINGPOINT_AVAILABLE'
 
 
 class WebhookSubscription(ModelBase):

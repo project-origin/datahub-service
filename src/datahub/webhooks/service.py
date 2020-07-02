@@ -5,15 +5,15 @@ import marshmallow_dataclass as md
 from hashlib import sha256
 from base64 import b64encode
 
-from datahub.settings import DEBUG, HMAC_HEADER
 from datahub.db import atomic
+from datahub.settings import DEBUG, HMAC_HEADER
 
 from .models import (
     WebhookEvent,
     WebhookSubscription,
     OnGgoIssuedRequest,
     OnMeasurementPublishedRequest,
-    OnMeteringointsAvailableRequest,
+    OnMeteringPointAvailableRequest,
 )
 
 
@@ -161,14 +161,16 @@ class WebhookService(object):
             )
         )
 
-    def on_meteringpoints_available(self, subscription):
+    def on_meteringpoint_available(self, subscription, meteringpoint):
         """
         :param WebhookSubscription subscription:
+        :param datahub.meteringpoints.MeteringPoint meteringpoint:
         """
         self.publish(
             subscription=subscription,
-            schema=md.class_schema(OnMeteringointsAvailableRequest)(),
-            request=OnMeteringointsAvailableRequest(
+            schema=md.class_schema(OnMeteringPointAvailableRequest)(),
+            request=OnMeteringPointAvailableRequest(
                 sub=subscription.subject,
+                meteringpoint=meteringpoint,
             )
         )

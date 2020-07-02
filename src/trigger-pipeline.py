@@ -8,6 +8,7 @@ from datahub.technology import Technology
 from datahub.meteringpoints import MeteringPointQuery
 from datahub.pipelines import (
     start_import_meteringpoints_pipeline,
+    start_import_energy_type_pipeline,
     start_import_measurements_pipeline,
     start_import_measurements_pipeline_for,
     start_resubmit_measurements_pipeline,
@@ -24,18 +25,35 @@ class PipelineTriggers(object):
     @inject_session
     def import_measurements_for(self, gsrn, session):
         try:
-            metering_point = MeteringPointQuery(session) \
+            meteringpoint = MeteringPointQuery(session) \
                 .has_gsrn(str(gsrn)) \
                 .one()
         except NoResultFound:
             raise NoResultFound(f'Could not find MeteringPoint with GSRN = {gsrn}')
 
         start_import_measurements_pipeline_for(
-            metering_point.sub, metering_point.gsrn)
+            subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
+        )
+
+    def import_meteringpoints_for(self, subject):
+        start_import_meteringpoints_pipeline(subject)
 
     @inject_session
-    def import_meteringpoints_for(self, subject, session):
-        start_import_meteringpoints_pipeline(subject, session)
+    def import_energy_type_for(self, gsrn, session):
+        try:
+            meteringpoint = MeteringPointQuery(session) \
+                .has_gsrn(str(gsrn)) \
+                .is_production() \
+                .one()
+        except NoResultFound:
+            raise NoResultFound(f'Could not find [production] MeteringPoint with GSRN = {gsrn}')
+
+        start_import_energy_type_pipeline(
+            subject=meteringpoint.sub,
+            gsrn=meteringpoint.gsrn,
+            session=session,
+        )
 
     @inject_session
     def export_technologies(self, session):
