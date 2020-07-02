@@ -727,29 +727,42 @@ paths:
 
 
 
-  /webhook/on-meteringpoints-available/subscribe:
+  /webhook/on-meteringpoint-available/subscribe:
     post:
-      summary: Subscribe to webhook event ON_METERINGPOINTS_AVAILABLE
+      summary: Subscribe to webhook event ON_METERINGPOINT_AVAILABLE
       description: |
-        Subscribe to webhook event ON_METERINGPOINTS_AVAILABLE.
-        
-        This event is fired whenever there is a change in the MeteringPoints in which the user has granted access to. The receiving service is invited to fetch the list of available MeteringPoints using the /meteringpoints endpoint.
-        
+        Subscribe to webhook event ON_METERINGPOINT_AVAILABLE.
+
+        This event is fired whenever user has granted access to a new MeteringPoint.
+
         Webhook events are expected to respond with a HTTP status 200. Any responses other than HTTP status 200 are retried every 60 seconds for up to around 24 hours. Hereafter retrying is cancelled.
-        
+
         ## Security using HMAC
-        
+
         When subscribing for a webhook event on behalf of a user, the service must provide a secret string. This is used when invoking the receiving service using HMAC Authentication. When firing the webhook, DataHubServices provide a SHA256 encryptet hash of the body using the provided secret in the "x-hub-signature" header.
-        
+
         This implementation is a replica of how [GitHub secures their webhooks](https://developer.github.com/webhooks/securing/).
-        
+
         ## Webhook body
-        
-        ON_METERINGPOINTS_AVAILABLE webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub). See example:
-        
+
+        ON_METERINGPOINT_AVAILABLE webhooks are invoke using POST with a JSON body provided. The body contains the subject ID (sub) along with the MeteringPoint. See example:
+
         ```
         {
             "sub": "619ed366-8f3b-431b-bdea-fb489df75ebd",
+            "meteringpoint": {
+              "gsrn": "123456789012345",
+              "type": "production",
+              "sector": "DK1",
+              "technologyCode": "T010000",
+              "fuelCode": "F01040100",
+              "streetCode": "string",
+              "streetName": "string",
+              "buildingNumber": "string",
+              "cityName": "string",
+              "postCode": "string",
+              "municipalityCode": "string"
+            }
         }
         ```
       security:
@@ -773,10 +786,10 @@ paths:
                 url:
                   type: string
                   description: URL to invoke webhook event on
-                  example: 'https://my-website.com/on-ggo-issued'
+                  example: 'https://my-website.com/on-meteringpoint-available'
                 secret:
                   type: string
-                  description: A secret which is used to 
+                  description: A secret which is used to
                   example: 'a secret string only known by my website or service'
       responses:
         '200':
@@ -791,12 +804,12 @@ paths:
                     example: true
 
 
-  /webhook/on-meteringpoints-available/unsubscribe:
+  /webhook/on-meteringpoint-available/unsubscribe:
     post:
-      summary: Unsubscribe from webhook event ON_METERINGPOINTS_AVAILABLE
+      summary: Unsubscribe from webhook event ON_METERINGPOINT_AVAILABLE
       description: |
-        Unsubscribe from webhook event ON_METERINGPOINTS_AVAILABLE.
-        
+        Unsubscribe from webhook event ON_METERINGPOINT_AVAILABLE.
+
         The provided URL and secret must match that used when subscribing.
       security:
         - Bearer: []
@@ -819,7 +832,7 @@ paths:
                 url:
                   type: string
                   description: URL to invoke webhook event on
-                  example: 'https://my-website.com/on-ggo-issued'
+                  example: 'https://my-website.com/on-meteringpoint-available'
                 secret:
                   type: string
                   description: A secret which is used to 
@@ -894,7 +907,7 @@ paths:
                 url:
                   type: string
                   description: URL to invoke webhook event on
-                  example: 'https://my-website.com/on-ggo-issued'
+                  example: 'https://my-website.com/on-measurement-published'
                 secret:
                   type: string
                   description: A secret which is used to 
@@ -940,7 +953,7 @@ paths:
                 url:
                   type: string
                   description: URL to invoke webhook event on
-                  example: 'https://my-website.com/on-ggo-issued'
+                  example: 'https://my-website.com/on-measurement-published'
                 secret:
                   type: string
                   description: A secret which is used to 
