@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy import func, bindparam, text
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import groupby
 from functools import lru_cache
 from sqlalchemy.orm import joinedload
@@ -75,10 +75,10 @@ class MeasurementQuery(object):
         if filters.gsrn:
             q = q.filter(Measurement.gsrn.in_(filters.gsrn))
         if filters.begin:
-            q = q.filter(Measurement.begin == filters.begin)
+            q = q.filter(Measurement.begin == filters.begin.astimezone(timezone.utc))
         elif filters.begin_range:
-            q = q.filter(Measurement.begin >= filters.begin_range.begin)
-            q = q.filter(Measurement.begin <= filters.begin_range.end)
+            q = q.filter(Measurement.begin >= filters.begin_range.begin.astimezone(timezone.utc))
+            q = q.filter(Measurement.begin <= filters.begin_range.end.astimezone(timezone.utc))
         if filters.sector:
             q = q.filter(MeteringPoint.sector.in_(filters.sector))
         if filters.type:
@@ -106,7 +106,7 @@ class MeasurementQuery(object):
         :rtype: MeasurementQuery
         """
         return self.__class__(self.session, self.q.filter(
-            Measurement.begin == begin,
+            Measurement.begin == begin.astimezone(timezone.utc),
         ))
 
     def begins_within(self, begin_range):
@@ -118,8 +118,8 @@ class MeasurementQuery(object):
         :rtype: MeasurementQuery
         """
         return self.__class__(self.session, self.q.filter(sa.and_(
-            Measurement.begin >= begin_range.begin,
-            Measurement.begin <= begin_range.end,
+            Measurement.begin >= begin_range.begin.astimezone(timezone.utc),
+            Measurement.begin <= begin_range.end.astimezone(timezone.utc),
         )))
 
     def has_id(self, id):
@@ -249,15 +249,17 @@ class MeasurementQuery(object):
         return self.session.query(
             func.max(self.q.subquery().c.begin)).scalar()
 
-    def get_summary(self, resolution, grouping):
+    def get_summary(self, resolution, grouping, utc_offset=0):
         """
         Returns a summary of the result set.
 
         :param SummaryResolution resolution:
         :param list[str] grouping:
+        :param int utc_offset:
         :rtype: MeasurementSummary
         """
-        return MeasurementSummary(self.session, self, resolution, grouping)
+        return MeasurementSummary(
+            self.session, self, resolution, grouping, utc_offset)
 
 
 class MeasurementSummary(object):
@@ -288,17 +290,19 @@ class MeasurementSummary(object):
 
     ALL_TIME_LABEL = 'All-time'
 
-    def __init__(self, session, query, resolution, grouping):
+    def __init__(self, session, query, resolution, grouping, utc_offset=0):
         """
         :param sa.orm.Session session:
         :param MeasurementQuery query:
         :param SummaryResolution resolution:
         :param list[str] grouping:
+        :param int utc_offset:
         """
         self.session = session
         self.query = query
         self.resolution = resolution
         self.grouping = grouping
+        self.utc_offset = utc_offset
         self.fill_range = None
 
     def fill(self, fill_range):
@@ -358,7 +362,12 @@ class MeasurementSummary(object):
         if self.resolution == SummaryResolution.all:
             select.append(bindparam('label', self.ALL_TIME_LABEL))
         else:
-            select.append(func.to_char(q.c.begin, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))
+            if self.utc_offset is not None:
+                b = q.c.begin + text("INTERVAL '%d HOURS'" % self.utc_offset)
+            else:
+                b = q.c.begin
+
+            select.append(func.to_char(b, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))
             groups.append('resolution')
 
         # -- Grouping ------------------------------------------------------------

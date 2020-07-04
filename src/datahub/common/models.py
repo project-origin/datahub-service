@@ -1,9 +1,9 @@
 from enum import Enum, IntEnum
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import List
 
-from marshmallow import validates_schema, ValidationError
+from marshmallow import validates_schema, ValidationError, post_load
 
 
 class Unit(Enum):
@@ -64,7 +64,13 @@ class DateTimeRange:
     end: datetime
 
     @validates_schema
-    def validate_begin_before_end(self, data, **kwargs):
+    def validate_input(self, data, **kwargs):
+        if data['begin'].utcoffset() != data['end'].utcoffset():
+            raise ValidationError({
+                'begin': ['Must have same time offset as end'],
+                'end': ['Must have same time offset as begin'],
+            })
+
         if data['begin'] > data['end']:
             raise ValidationError({
                 'begin': ['Must be before end'],
