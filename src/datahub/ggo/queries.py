@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
-from datetime import datetime
+from datetime import datetime, timezone
 
 from datahub.common import DateTimeRange
 from datahub.measurements import Measurement
@@ -74,7 +74,7 @@ class GgoQuery(object):
         :rtype: GgoQuery
         """
         return self.__class__(self.session, self.q.filter(
-            Measurement.begin == begin,
+            Measurement.begin == begin.astimezone(timezone.utc),
         ))
 
     def begins_within(self, begin_range):
@@ -86,8 +86,8 @@ class GgoQuery(object):
         :rtype: GgoQuery
         """
         return self.__class__(self.session, self.q.filter(sa.and_(
-            Measurement.begin >= begin_range.begin,
-            Measurement.begin <= begin_range.end,
+            Measurement.begin >= begin_range.begin.astimezone(timezone.utc),
+            Measurement.begin <= begin_range.end.astimezone(timezone.utc),
         )))
 
     def has_gsrn(self, gsrn):
