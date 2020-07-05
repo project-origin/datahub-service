@@ -108,6 +108,7 @@ class MeasurementImportController(object):
             session.add_all((
                 self.issue_ggo_for(measurement)
                 for measurement in measurements
+                if measurement.amount > 0
             ))
 
         session.flush()
