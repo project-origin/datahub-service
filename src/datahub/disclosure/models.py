@@ -166,6 +166,9 @@ class DisclosureDataSeries:
 @dataclass
 class GetDisclosureRequest:
     id: str
+
+    # Offset from UTC in hours
+    utc_offset: int = field(metadata=dict(required=False, missing=0, data_key='utcOffset'))
     resolution: SummaryResolution = field(default=None)
     date_range: DateRange = field(default=None, metadata=dict(data_key='dateRange'))
 

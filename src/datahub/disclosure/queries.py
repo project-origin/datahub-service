@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from functools import lru_cache
 from itertools import groupby
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from datahub.settings import UNKNOWN_TECHNOLOGY_LABEL
 from datahub.technology import Technology
@@ -75,10 +75,11 @@ class DisclosureRetiredGgoQuery(object):
             DisclosureRetiredGgo.begin <= begin_range.end,
         )))
 
-    def get_summary(self, resolution, grouping):
+    def get_summary(self, resolution, grouping, utc_offset):
         """
         :param SummaryResolution resolution:
         :param list[str] grouping:
+        :param int utc_offset:
         :rtype: DisclosureRetiredGgoSummary
         """
         return DisclosureRetiredGgoSummary(self.session, self, resolution, grouping)
@@ -121,7 +122,7 @@ class DisclosureRetiredGgoSummary(object):
 
     ALL_TIME_LABEL = 'All-time'
 
-    def __init__(self, session, query, resolution, grouping):
+    def __init__(self, session, query, resolution, grouping, utc_offset=0):
         """
         :param Session session:
         :param DisclosureRetiredGgoQuery query:
@@ -132,6 +133,7 @@ class DisclosureRetiredGgoSummary(object):
         self.query = query
         self.resolution = resolution
         self.grouping = grouping
+        self.utc_offset = utc_offset
         self.fill_range = None
 
     def fill(self, fill_range):
@@ -197,7 +199,12 @@ class DisclosureRetiredGgoSummary(object):
         if self.resolution == SummaryResolution.all:
             select.append(sa.bindparam('label', self.ALL_TIME_LABEL))
         else:
-            select.append(sa.func.to_char(q.c.begin, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))
+            if self.utc_offset is not None:
+                b = q.c.begin + text("INTERVAL '%d HOURS'" % self.utc_offset)
+            else:
+                b = q.c.begin
+
+            select.append(sa.func.to_char(b, self.RESOLUTIONS_POSTGRES[self.resolution]).label('resolution'))
             groups.append('resolution')
 
         # -- Grouping ------------------------------------------------------------
