@@ -155,7 +155,8 @@ class GetMeasurementSummary(Controller):
         if request.filters:
             query = query.apply_filters(request.filters)
 
-        summary = query.get_summary(request.resolution, request.grouping)
+        summary = query.get_summary(
+            request.resolution, request.grouping, request.utc_offset)
 
         if request.fill and request.filters.begin_range:
             summary.fill(request.filters.begin_range)
