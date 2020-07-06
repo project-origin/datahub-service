@@ -4,9 +4,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import relationship
 from bip32utils import BIP32Key
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
-from marshmallow import validate
+from marshmallow import validate, validates_schema, ValidationError, post_load
 
 from datahub.db import ModelBase
 from datahub.common import DateTimeRange, SummaryResolution, SummaryGroup
@@ -215,6 +215,14 @@ class MeasurementFilters:
     gsrn: List[str] = field(default_factory=list)
     type: MeasurementType = field(default=None, metadata=dict(by_value=True))
 
+    @validates_schema
+    def validate_begin_and_begin_range_mutually_exclusive(self, data, **kwargs):
+        if data.get('begin') and data.get('begin_range'):
+            raise ValidationError({
+                'begin': ['Field is mutually exclusive with beginRange'],
+                'beginRange': ['Field is mutually exclusive with begin'],
+            })
+
 
 # -- GetMeasurement request and response -------------------------------------
 
@@ -276,7 +284,33 @@ class GetMeasurementSummaryRequest:
         unique_values,
     )))
 
+    # Offset from UTC in hours
+    utc_offset: int = field(metadata=dict(required=False, missing=0, data_key='utcOffset'))
+
     filters: MeasurementFilters = field(default=None)
+
+    @post_load
+    def apply_time_offset(self, data, **kwargs):
+        """
+        Applies the request utcOffset to filters.begin and filters.begin_range
+        if they don't already have a UTC offset applied to them by the client.
+        """
+        tzinfo = timezone(timedelta(hours=data['utc_offset']))
+
+        if data['filters'].begin and data['filters'].begin.utcoffset() is None:
+            data['filters'].begin = \
+                data['filters'].begin.replace(tzinfo=tzinfo)
+
+        if data['filters'].begin_range:
+            if data['filters'].begin_range.begin.utcoffset() is None:
+                data['filters'].begin_range.begin = \
+                    data['filters'].begin_range.begin.replace(tzinfo=tzinfo)
+
+            if data['filters'].begin_range.end.utcoffset() is None:
+                data['filters'].begin_range.end = \
+                    data['filters'].begin_range.end.replace(tzinfo=tzinfo)
+
+        return data
 
 
 @dataclass
