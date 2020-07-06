@@ -12,6 +12,7 @@ spec:
       labels:
         app: datahub-deployment
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: datahub-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
@@ -50,6 +51,7 @@ spec:
       labels:
         app: datahub-beat-deployment
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: datahub-beat-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
@@ -83,6 +85,7 @@ spec:
       labels:
         app: datahub-worker-deployment
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: datahub-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
@@ -118,6 +121,7 @@ spec:
       labels:
         app: datahub-disclosure-worker-deployment
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: datahub-disclosure-worker-container
           image: projectorigin/datahub-service:{{ .Values.tag }}

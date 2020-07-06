@@ -577,9 +577,9 @@ def invoke_on_ggo_issued_webhook(task, subject, gsrn, measurement_id, subscripti
         logger.exception('Failed to load Measurement from database', extra=__log_extra)
         raise task.retry(exc=e)
 
-    # This should NEVER happen... Anyway:
+    # GGO many not have been issued (for instance if Measurement.amount = 0)
     if measurement.ggo is None:
-        raise RuntimeError('GGO does not exist')
+        return
 
     # Get webhook subscription from database
     try:
