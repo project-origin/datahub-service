@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from enum import Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from typing import List
 from datetime import date
 from dataclasses import dataclass, field
@@ -45,9 +45,6 @@ class Disclosure(ModelBase):
     publicize_gsrn = sa.Column(sa.Boolean(), nullable=False)
     publicize_physical_address = sa.Column(sa.Boolean(), nullable=False)
 
-    meteringpoints = relationship('DisclosureMeteringPoint', cascade='all,delete', back_populates='disclosure', uselist=True)
-    settlements = relationship('DisclosureSettlement', cascade='all,delete', back_populates='disclosure', uselist=True)
-
     @property
     def date_range(self):
         """
@@ -89,8 +86,8 @@ class DisclosureMeteringPoint(ModelBase):
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
-    disclosure_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure.id'), index=True)
-    disclosure = relationship('Disclosure', foreign_keys=[disclosure_id])
+    disclosure_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure.id', ondelete='CASCADE'), index=True, nullable=False)
+    disclosure = relationship('Disclosure', foreign_keys=[disclosure_id], backref=backref('meteringpoints', passive_deletes=True))
 
     gsrn = sa.Column(sa.String(), sa.ForeignKey('meteringpoint.gsrn'), nullable=False)
     meteringpoint = relationship('MeteringPoint', foreign_keys=[gsrn])
@@ -108,13 +105,11 @@ class DisclosureSettlement(ModelBase):
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
-    disclosure_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure.id'), index=True)
-    disclosure = relationship('Disclosure', foreign_keys=[disclosure_id])
+    disclosure_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure.id', ondelete='CASCADE'), index=True, nullable=False)
+    disclosure = relationship('Disclosure', foreign_keys=[disclosure_id], backref=backref('settlements', passive_deletes=True))
 
     measurement_id = sa.Column(sa.Integer(), sa.ForeignKey('measurement.id'), index=True)
     measurement = relationship('Measurement', foreign_keys=[measurement_id])
-
-    ggos = relationship('DisclosureRetiredGgo', cascade='all,delete', back_populates='settlement', uselist=True)
 
     address = sa.Column(sa.String(), nullable=False)
 
@@ -130,8 +125,8 @@ class DisclosureRetiredGgo(ModelBase):
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
 
-    settlement_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure_settlement.id'), nullable=False)
-    settlement = relationship('DisclosureSettlement', foreign_keys=[settlement_id])
+    settlement_id = sa.Column(sa.Integer(), sa.ForeignKey('disclosure_settlement.id', ondelete='CASCADE'), index=True, nullable=False)
+    settlement = relationship('DisclosureSettlement', foreign_keys=[settlement_id], backref=backref('ggos', passive_deletes=True))
 
     address = sa.Column(sa.String(), nullable=False)
     amount = sa.Column(sa.Integer(), nullable=False)

@@ -46,10 +46,33 @@ class GetOnboardingUrl(Controller):
         onboarding_url = generate_onboarding_url(
             token.subject, onboarding_return_url)
 
+        self.start_import_meteringpoints_delayed(token.subject)
+
         return GetOnboardingUrlResponse(
             success=True,
             url=onboarding_url,
         )
+
+    def start_import_meteringpoints_delayed(self, subject):
+        """
+        Starts a number of tasks to import MeteringPoints for the subject
+        requesting the onboarding URL. In case the user (client) does not
+        return to the OnboardingCallback endpoint (below), then MeteringPoints
+        are never imported, so this implements a sort of insurance/fallback.
+
+        These tasks are very cheap to execute, and MeteringPoints are never
+        imported twice, so it's safe to do this over and over again.
+        """
+        start_import_meteringpoints_pipeline(
+            subject, countdown=10*60, IS_DELAYED=True)
+        start_import_meteringpoints_pipeline(
+            subject, countdown=30*60, IS_DELAYED=True)
+        start_import_meteringpoints_pipeline(
+            subject, countdown=1*60*60, IS_DELAYED=True)
+        start_import_meteringpoints_pipeline(
+            subject, countdown=2*60*60, IS_DELAYED=True)
+        start_import_meteringpoints_pipeline(
+            subject, countdown=6*60*60, IS_DELAYED=True)
 
 
 class OnboardingCallback(Controller):
