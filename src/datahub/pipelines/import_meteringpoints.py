@@ -35,13 +35,15 @@ energtype_service = EnergyTypeService()
 webhook_service = WebhookService()
 
 
-def start_import_meteringpoints_pipeline(subject):
+def start_import_meteringpoints_pipeline(subject, countdown=None, **logging_kwargs):
     """
     Starts a pipeline which imports meteringpoints for a specific subject.
 
     :param str subject:
+    :param int countdown: Delay in seconds
     """
-    import_meteringpoints.s(subject=subject).apply_async()
+    import_meteringpoints.s(subject=subject, **logging_kwargs) \
+        .apply_async(countdown=countdown)
 
 
 def start_import_energy_type_pipeline(subject, gsrn, session):
@@ -98,7 +100,7 @@ def build_on_meteringpoint_available_webhooks(subject, gsrn, session):
     task='import_meteringpoints',
 )
 @inject_session
-def import_meteringpoints(task, subject, session):
+def import_meteringpoints(task, subject, session, **logging_kwargs):
     """
     Imports meteringpoints for a specific subject
 
@@ -106,11 +108,12 @@ def import_meteringpoints(task, subject, session):
     :param str subject:
     :param sqlalchemy.orm.Session session:
     """
-    __log_extra = {
+    __log_extra = logging_kwargs.copy()
+    __log_extra.update({
         'subject': subject,
         'pipeline': 'import_meteringpoints',
         'task': 'import_meteringpoints',
-    }
+    })
 
     @atomic
     def __import_meteringpoints(session):
