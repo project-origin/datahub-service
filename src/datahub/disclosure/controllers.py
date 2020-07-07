@@ -68,10 +68,10 @@ class GetDisclosure(Controller):
         # Data
         if disclosure.publicize_meteringpoints:
             data = self.get_data_series(
-                disclosure, begin_range, resolution, session)
+                disclosure, begin_range, resolution, request.utc_offset, session)
         else:
             data = self.get_anonymized_data_series(
-                disclosure, begin_range, resolution, session)
+                disclosure, begin_range, resolution, request.utc_offset, session)
 
         # Data labels
         if resolution is SummaryResolution.all:
@@ -110,7 +110,7 @@ class GetDisclosure(Controller):
 
         return min(resolution, disclosure.max_resolution)
 
-    def get_data_series(self, disclosure, begin_range, resolution, session):
+    def get_data_series(self, disclosure, begin_range, resolution, utc_offset, session):
         """
         :rtype: list[DisclosureDataSeries]
         """
@@ -128,24 +128,24 @@ class GetDisclosure(Controller):
             data.append(DisclosureDataSeries(
                 gsrn=gsrn,
                 address=address,
-                measurements=self.get_measurements(disclosure, begin_range, resolution, mp.gsrn),
-                ggos=self.get_ggos(disclosure, begin_range, resolution, session, mp.gsrn),
+                measurements=self.get_measurements(disclosure, begin_range, resolution, utc_offset, mp.gsrn),
+                ggos=self.get_ggos(disclosure, begin_range, resolution, session, utc_offset, mp.gsrn),
             ))
 
         return data
 
-    def get_anonymized_data_series(self, disclosure, begin_range, resolution, session):
+    def get_anonymized_data_series(self, disclosure, begin_range, resolution, utc_offset, session):
         """
         :rtype: list[DisclosureDataSeries]
         """
         return [
             DisclosureDataSeries(
-                measurements=self.get_measurements(disclosure, begin_range, resolution),
-                ggos=self.get_ggos(disclosure, begin_range, resolution, session),
+                measurements=self.get_measurements(disclosure, begin_range, utc_offset, resolution),
+                ggos=self.get_ggos(disclosure, begin_range, resolution, utc_offset, session),
             )
         ]
 
-    def get_measurements(self, disclosure, begin_range, resolution, gsrn=None):
+    def get_measurements(self, disclosure, begin_range, resolution, utc_offset, gsrn=None):
         """
         :rtype: list[int]
         """
@@ -157,7 +157,7 @@ class GetDisclosure(Controller):
             measurements = measurements.has_gsrn(gsrn)
 
         summary = measurements \
-            .get_summary(resolution, []) \
+            .get_summary(resolution, [], utc_offset) \
             .fill(begin_range)
 
         if summary.groups:
@@ -165,7 +165,7 @@ class GetDisclosure(Controller):
         else:
             return []
 
-    def get_ggos(self, disclosure, begin_range, resolution, session, gsrn=None):
+    def get_ggos(self, disclosure, begin_range, resolution, session, utc_offset, gsrn=None):
         """
         :rtype: list[SummaryGroup]
         """
@@ -177,7 +177,7 @@ class GetDisclosure(Controller):
             ggos = ggos.has_gsrn(gsrn)
 
         summary = ggos \
-            .get_summary(resolution, ['technology']) \
+            .get_summary(resolution, ['technology'], utc_offset) \
             .fill(begin_range)
 
         return summary.groups
