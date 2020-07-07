@@ -82,7 +82,8 @@ class DisclosureRetiredGgoQuery(object):
         :param int utc_offset:
         :rtype: DisclosureRetiredGgoSummary
         """
-        return DisclosureRetiredGgoSummary(self.session, self, resolution, grouping)
+        return DisclosureRetiredGgoSummary(
+            self.session, self, resolution, grouping, utc_offset)
 
 
 class DisclosureRetiredGgoSummary(object):
