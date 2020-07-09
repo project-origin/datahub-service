@@ -1,6 +1,6 @@
 import json
 import requests
-from typing import Dict, Any
+from typing import Dict
 
 from datahub.settings import ENERGY_TYPE_SERVICE_URL, DEBUG
 
