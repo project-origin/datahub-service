@@ -167,7 +167,7 @@ class MappedGgo:
     expire_time: str = field(metadata=dict(data_key='expireTime'))
     technology_code: str = field(metadata=dict(data_key='technologyCode'))
     fuel_code: str = field(metadata=dict(data_key='fuelCode'))
-    emissions: Dict[str, Dict[str, Any]] = field()
+    emissions: Dict[str, float] = field(default=None)
 
 
 # -- GetGgoList request and response -----------------------------------------
