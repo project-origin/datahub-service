@@ -128,8 +128,21 @@ class GetDisclosure(Controller):
             data.append(DisclosureDataSeries(
                 gsrn=gsrn,
                 address=address,
-                measurements=self.get_measurements(disclosure, begin_range, resolution, utc_offset, mp.gsrn),
-                ggos=self.get_ggos(disclosure, begin_range, resolution, session, utc_offset, mp.gsrn),
+                measurements=self.get_measurements(
+                    disclosure=disclosure,
+                    begin_range=begin_range,
+                    resolution=resolution,
+                    utc_offset=utc_offset,
+                    gsrn=mp.gsrn,
+                ),
+                ggos=self.get_ggos(
+                    disclosure=disclosure,
+                    begin_range=begin_range,
+                    resolution=resolution,
+                    utc_offset=utc_offset,
+                    session=session,
+                    gsrn=mp.gsrn,
+                ),
             ))
 
         return data
@@ -140,8 +153,19 @@ class GetDisclosure(Controller):
         """
         return [
             DisclosureDataSeries(
-                measurements=self.get_measurements(disclosure, begin_range, utc_offset, resolution),
-                ggos=self.get_ggos(disclosure, begin_range, resolution, utc_offset, session),
+                measurements=self.get_measurements(
+                    disclosure=disclosure,
+                    begin_range=begin_range,
+                    utc_offset=utc_offset,
+                    resolution=resolution,
+                ),
+                ggos=self.get_ggos(
+                    disclosure=disclosure,
+                    begin_range=begin_range,
+                    resolution=resolution,
+                    utc_offset=utc_offset,
+                    session=session,
+                ),
             )
         ]
 
@@ -165,7 +189,7 @@ class GetDisclosure(Controller):
         else:
             return []
 
-    def get_ggos(self, disclosure, begin_range, resolution, session, utc_offset, gsrn=None):
+    def get_ggos(self, disclosure, begin_range, resolution, utc_offset, session, gsrn=None):
         """
         :rtype: list[SummaryGroup]
         """
