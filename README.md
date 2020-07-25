@@ -34,6 +34,10 @@ Initially, make sure to define necessary environment variables (listed below).
 You can define them in the .env file in the root of the project
 ([more details on this here](https://pipenv-fork.readthedocs.io/en/latest/advanced.html#automatic-loading-of-env)).
 
+Start by installing a few system libraries:
+
+    sudo apt install python3.7-dev libpq-dev
+
 Also, make sure to upgrade your system packages for good measure:
    
     pip install --upgrade --user setuptools pip pipenv
