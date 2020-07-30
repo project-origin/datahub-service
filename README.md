@@ -109,19 +109,27 @@ Name | Description | Example
 `FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
 `LAST_MEASUREMENT_TIME` | Set a date to end pulling data from | `2021-09-01T00:00:00Z`
 
-## Building container images
+## Building container image
+
+    docker build -f Dockerfile -t datahub-service-web:v1 .
+
+## Running container images
 
 Web API:
 
-    sudo docker build -f Dockerfile.web -t datahub-service-web:v1 .
+    docker run --entrypoint /app/entrypoint.web.sh datahub-service-web:v1
 
 Worker:
 
-    sudo docker build -f Dockerfile.worker -t datahub-service-worker:v1 .
+    docker run --entrypoint /app/entrypoint.worker.sh datahub-service-web:v1
+
+Disclosure Worker:
+
+    docker run --entrypoint /app/entrypoint.disclosure-worker.sh datahub-service-web:v1
 
 Worker Beat:
 
-    sudo docker build -f Dockerfile.beat -t datahub-service-beat:v1 .
+    docker run --entrypoint /app/entrypoint.beat.sh datahub-service-web:v1
 
 # System architecture
 
