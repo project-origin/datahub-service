@@ -111,25 +111,25 @@ Name | Description | Example
 
 ## Building container image
 
-    docker build -f Dockerfile -t datahub-service-web:v1 .
+    docker build -f Dockerfile -t datahub-service:v1 .
 
 ## Running container images
 
 Web API:
 
-    docker run --entrypoint /app/entrypoint.web.sh datahub-service-web:v1
+    docker run --entrypoint /app/entrypoint.web.sh datahub-service:v1
 
 Worker:
 
-    docker run --entrypoint /app/entrypoint.worker.sh datahub-service-web:v1
+    docker run --entrypoint /app/entrypoint.worker.sh datahub-service:v1
 
 Disclosure Worker:
 
-    docker run --entrypoint /app/entrypoint.disclosure-worker.sh datahub-service-web:v1
+    docker run --entrypoint /app/entrypoint.disclosure-worker.sh datahub-service:v1
 
 Worker Beat:
 
-    docker run --entrypoint /app/entrypoint.beat.sh datahub-service-web:v1
+    docker run --entrypoint /app/entrypoint.beat.sh datahub-service:v1
 
 # System architecture
 
