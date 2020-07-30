@@ -2,7 +2,7 @@
 
 # Project Origin DataHubService
 
-This is the repository for Project Origin's DataHubService.
+This is the repository for DataHubService, a part of [Project Origin](https://github.com/project-origin/documentation/).
 
 This service is responsible for:
 
@@ -10,12 +10,12 @@ This service is responsible for:
 - Issuing of GGOs
 - Publishing measurements and issuing GGOs on to the blockchain ledger
 - Generating and storing publicly disclosed datasets
-- Mapping from technology- and fuel-code to a technology label
+- Mapping from technology- and fuel-code to a technology label (ie. "Wind", "Solar", etc.)
 
 
 ## Installation and running locally
 
-The following sections describes how to install and run the project locally for development and debugging.
+The following sections details how to install and run the project locally for development and debugging.
 
 
 ## Requirements
@@ -24,7 +24,7 @@ The following sections describes how to install and run the project locally for 
 - Pip
 - Pipenv
 - A PostgreSQL server with one database
-- A Redis server with tree databases
+- A Redis server with three databases
 - A Unix/Linux machine
 
 ### First time installation
@@ -122,6 +122,10 @@ Worker:
 Worker Beat:
 
     sudo docker build -f Dockerfile.beat -t datahub-service-beat:v1 .
+
+# System architecture
+
+![alt text](doc/DataHubService.png)
 
 
 # 3rd party libraries
