@@ -125,7 +125,7 @@ Worker Beat:
 
 # System architecture
 
-The following diagram depicts the overall architecture of DataHubService and its dependencies. A few key points is listes below the diagram.
+The following diagram depicts the overall architecture of DataHubService and its dependencies. A few key points are listed below the diagram.
 
 ![alt text](doc/DataHubService.png)
 
@@ -133,6 +133,7 @@ The following diagram depicts the overall architecture of DataHubService and its
 - It has two asynchronous workers running their own processes (containers), one generic worker and one for compiling Disclosures specifically.
 - The web API process starts asynchronous tasks by submitting them to a distributed queue using Redis.
 - The Worker imports data from DataHub and submits it to both the SQL database and the ledger.
+- A Beat process kicks off periodic tasks.
 
 
 # 3rd party libraries
