@@ -2,7 +2,7 @@
 
 # Project Origin DataHubService
 
-This is the repository for Project Origin's DataHubService.
+This is the repository for DataHubService, a part of [Project Origin](https://github.com/project-origin/documentation/).
 
 This service is responsible for:
 
@@ -10,12 +10,12 @@ This service is responsible for:
 - Issuing of GGOs
 - Publishing measurements and issuing GGOs on to the blockchain ledger
 - Generating and storing publicly disclosed datasets
-- Mapping from technology- and fuel-code to a technology label
+- Mapping from technology- and fuel-code to a technology label (ie. "Wind", "Solar", etc.)
 
 
 ## Installation and running locally
 
-The following sections describes how to install and run the project locally for development and debugging.
+The following sections details how to install and run the project locally for development and debugging.
 
 
 ## Requirements
@@ -24,7 +24,7 @@ The following sections describes how to install and run the project locally for 
 - Pip
 - Pipenv
 - A PostgreSQL server with one database
-- A Redis server with tree databases
+- A Redis server with three databases
 - A Unix/Linux machine
 
 ### First time installation
@@ -33,6 +33,10 @@ The following sections describes how to install and run the project locally for 
 Initially, make sure to define necessary environment variables (listed below).
 You can define them in the .env file in the root of the project
 ([more details on this here](https://pipenv-fork.readthedocs.io/en/latest/advanced.html#automatic-loading-of-env)).
+
+Start by installing a few system libraries:
+
+    sudo apt install python3.7-dev libpq-dev
 
 Also, make sure to upgrade your system packages for good measure:
    
@@ -105,19 +109,39 @@ Name | Description | Example
 `FIRST_MEASUREMENT_TIME` | Set a date to start pulling data from | `2019-09-01T00:00:00Z`
 `LAST_MEASUREMENT_TIME` | Set a date to end pulling data from | `2021-09-01T00:00:00Z`
 
-## Building container images
+## Building container image
+
+    docker build -f Dockerfile -t datahub-service:v1 .
+
+## Running container images
 
 Web API:
 
-    sudo docker build -f Dockerfile.web -t datahub-service-web:v1 .
+    docker run --entrypoint /app/entrypoint.web.sh datahub-service:v1
 
 Worker:
 
-    sudo docker build -f Dockerfile.worker -t datahub-service-worker:v1 .
+    docker run --entrypoint /app/entrypoint.worker.sh datahub-service:v1
+
+Disclosure Worker:
+
+    docker run --entrypoint /app/entrypoint.disclosure-worker.sh datahub-service:v1
 
 Worker Beat:
 
-    sudo docker build -f Dockerfile.beat -t datahub-service-beat:v1 .
+    docker run --entrypoint /app/entrypoint.beat.sh datahub-service:v1
+
+# System architecture
+
+The following diagram depicts the overall architecture of DataHubService and its dependencies. A few key points are listed below the diagram.
+
+![alt text](doc/DataHubService.png)
+
+- It exposes a web API using OAuth2 authentication.
+- It has two asynchronous workers running their own processes (containers), one generic worker and one for compiling Disclosures specifically.
+- The web API process starts asynchronous tasks by submitting them to a distributed queue using Redis.
+- The Worker imports data from DataHub and submits it to both the SQL database and the ledger.
+- A Beat process kicks off periodic tasks.
 
 
 # 3rd party libraries
