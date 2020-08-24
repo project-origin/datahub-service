@@ -1,8 +1,9 @@
 import sqlalchemy as sa
 import origin_ledger_sdk as ols
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from bip32utils import BIP32Key
-from typing import List
+from typing import List, Dict, Any
 from datetime import datetime
 from dataclasses import dataclass, field
 
@@ -34,6 +35,8 @@ class Ggo(ModelBase):
 
     measurement_id = sa.Column(sa.Integer(), sa.ForeignKey('measurement.id'), index=True)
     measurement = relationship('Measurement', foreign_keys=[measurement_id], lazy='joined', back_populates='ggo')
+
+    emissions = sa.Column(JSONB())
 
     @property
     def meteringpoint(self):
@@ -164,6 +167,7 @@ class MappedGgo:
     expire_time: str = field(metadata=dict(data_key='expireTime'))
     technology_code: str = field(metadata=dict(data_key='technologyCode'))
     fuel_code: str = field(metadata=dict(data_key='fuelCode'))
+    emissions: Dict[str, float] = field(default=None)
 
 
 # -- GetGgoList request and response -----------------------------------------
