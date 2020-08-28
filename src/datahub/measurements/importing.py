@@ -1,3 +1,4 @@
+from typing import Dict, Any
 from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
@@ -5,6 +6,7 @@ from datahub import logger
 from datahub.ggo import Ggo
 from datahub.services import eloverblik as e
 from datahub.meteringpoints import MeteringPoint
+from datahub.services.energytypes import EnergyTypeService
 from datahub.settings import (
     FIRST_MEASUREMENT_TIME,
     LAST_MEASUREMENT_TIME,
@@ -17,6 +19,7 @@ from .queries import MeasurementQuery
 
 # Services
 eloverblik_service = e.EloverblikService()
+energtype_service = EnergyTypeService()
 
 
 # Settings
@@ -105,8 +108,10 @@ class MeasurementImportController(object):
 
         # Issue GGOs if necessary
         if meteringpoint.is_producer():
+            emissions = self.get_emissions(meteringpoint.gsrn)
+
             session.add_all((
-                self.issue_ggo_for(measurement)
+                self.issue_ggo_for(measurement, emissions)
                 for measurement in measurements
                 if measurement.amount > 0
             ))
@@ -173,15 +178,17 @@ class MeasurementImportController(object):
         else:
             return self.get_default_end()
 
-    def issue_ggo_for(self, measurement):
+    def issue_ggo_for(self, measurement, emissions):
         """
         :param Measurement measurement:
+        :param Dict[str, Dict[str, Any]] emissions:
         :rtype: Ggo
         """
         return Ggo(
             issue_time=datetime.now(tz=timezone.utc),
             expire_time=datetime.now(tz=timezone.utc) + GGO_EXPIRE_TIME,
             measurement=measurement,
+            emissions=emissions,
         )
 
     def measurement_exists(self, measurement, session):
@@ -215,3 +222,10 @@ class MeasurementImportController(object):
         return datetime \
             .fromordinal(date.today().toordinal()) \
             .astimezone(timezone.utc)
+
+    def get_emissions(self, gsrn):
+        """
+        :param str gsrn:
+        :rtype: Dict[str, Dict[str, Any]]
+        """
+        return energtype_service.get_emissions(gsrn)

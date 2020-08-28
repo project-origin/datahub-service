@@ -180,6 +180,7 @@ def test__import_meteringpoints__importer_raises_EnergyTypeUnavailable__should_N
         return session.query(MeteringPoint).filter_by(sub=subject).all()
 
     importer_mock.import_meteringpoints.side_effect = __import_meteringpoints
+    importer_mock.get_emissions.return_value = {}
 
     get_energy_type_mock.side_effect = EnergyTypeUnavailable()
 

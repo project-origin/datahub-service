@@ -83,7 +83,7 @@ class GetMeasurementList(Controller):
             query = query.apply_filters(request.filters)
 
         results = query \
-            .order_by(Measurement.begin) \
+            .order_by(self.get_order_by(request)) \
             .offset(request.offset)
 
         if request.limit:
@@ -94,6 +94,24 @@ class GetMeasurementList(Controller):
             total=query.count(),
             measurements=results.all(),
         )
+
+    def get_order_by(self, request):
+        """
+        :param GetMeasurementListRequest request:
+        """
+        if request.order == 'begin':
+            field = Measurement.begin
+        elif request.order == 'amount':
+            field = Measurement.amount
+        else:
+            raise RuntimeError('Should NOT have happened')
+
+        if request.sort == 'asc':
+            return field.asc()
+        elif request.sort == 'desc':
+            return field.desc()
+        else:
+            raise RuntimeError('Should NOT have happened')
 
 
 class GetBeginRange(Controller):
