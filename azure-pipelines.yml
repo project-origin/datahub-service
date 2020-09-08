@@ -1,152 +1,48 @@
 trigger:
-  branches:
-    include:
-    - master
-    - test
-    - develop
+  - master
+  - preprod
+  - test
+  - develop
 
-# no PR triggers
 pr: none
 
 resources:
-- repo: self
+  repositories:
+    - repository: self
+    - repository: templates
+      type: github
+      endpoint: project-origin
+      name: project-origin/pipeline-templates
 
 variables:
-  releaseName: 'datahub-service'
-  imageName: 'projectorigin/$(releaseName)'
-
-  ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-    kubeCon: 'prod-kube-con'
-    namespace: 'project-origin'
-    tag: ''
-    workerreplicas: 2
-  ${{ if eq(variables['Build.SourceBranchName'], 'test') }}:
-    kubeCon: 'test-kube-con'
-    namespace: 'test-project-origin'
-    tag: 'rc-'
-    workerreplicas: 1
-  ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
-    kubeCon: 'dev-kube-con'
-    namespace: 'dev-project-origin'
-    tag: 'canary-'
-    workerreplicas: 1
+  - name: releaseName
+    value: 'datahub-service'
+  - name: imageName
+    value: 'projectorigin/$(releaseName)'
+  - template: vars.yml@templates
 
 pool:
   vmImage: 'ubuntu-latest'
 
 jobs:
-  - job: test
-    displayName: Test
-    pool:
-      vmImage: 'ubuntu-latest'
-    variables:
-      TEST: 1
-    steps:
-      - script: sudo apt update
-        displayName: 'Update repo'
+  - template: job-run-pytest.yml@templates
 
-      - script: sudo apt install -y pkg-config gcc libsecp256k1-dev libzmq3-dev
-        displayName: 'Install packages'
-
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: '3.7'
-
-      - script: pip install --upgrade twine wheel setuptools pip pipenv
-        displayName: 'Upgrading/installing Python packages'
-
-      - script: python -m pipenv install -d
-        displayName: 'Installing dependencies from Pipenv'
-
-      - script: python -m pipenv run pytest
-        displayName: 'Run tests'
-
-  - job: build_and_release
-    displayName: Build and Release
-    dependsOn: test
-    steps:
-
-      - script: echo "##vso[task.setvariable variable=tag]$(tag)$(git describe --tags --long | sed '0,/-/s/-/./')"
-        displayName: Append tag with git describe
+  - template: job-docker-build.yml@templates
+    parameters:
+      dependsOn: run_pytest
+      imageName: $(imageName)
+      tag: $(tag)
       
-      - task: Docker@2
-        displayName: Build docker image
-        inputs:
-          command: build
-          repository: $(imageName)
-          Dockerfile: Dockerfile
-          tags: $(tag)
-      
-      - task: Docker@2
-        displayName: Build docker latest image
-        condition: eq(variables['Build.SourceBranchName'], 'master')
-        inputs:
-          command: build
-          repository: $(imageName)
-          Dockerfile: Dockerfile
-          tags: latest
-
-      - task: Docker@2
-        displayName: Push image
-        inputs:
-          command: push
-          repository: $(imageName)
-          containerRegistry: dockerHub
-          tags: $(tag)
-
-      - task: Docker@2
-        displayName: Push latest image
-        condition: eq(variables['Build.SourceBranchName'], 'master')
-        inputs:
-          command: push
-          repository: $(imageName)
-          containerRegistry: dockerHub
-          tags: latest
-
-  - job: deploy
-    displayName: Deploy
-    pool:
-      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-        name: eloprindelse-prod
-      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
-        vmImage: 'ubuntu-latest'
-    dependsOn: build_and_release
-    condition: succeeded()
-    steps:
-      - script: echo "##vso[task.setvariable variable=tag]$(tag)$(git describe --tags --long | sed '0,/-/s/-/./')"
-        displayName: Append tag with git describe
-        
-
-      - task: HelmDeploy@0
-        displayName: Helm upgrade
-        inputs:
-          connectionType: 'Kubernetes Service Connection'
-          kubernetesServiceConnection: $(kubeCon)
-          namespace: $(namespace)
-          command: upgrade
-          chartType: filepath
-          chartPath: ./chart
-          releaseName: $(releaseName)
-          overrideValues: tag=$(tag),workerreplicas=$(workerreplicas)
-          install: true
-          waitForExecution: true
-
-  - job: rollback
-    displayName: Rollback
-    pool:
-      ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-        name: eloprindelse-prod
-      ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
-        vmImage: 'ubuntu-latest'
-    dependsOn: deploy
-    condition: and(failed('deploy'), ne(variables['Build.SourceBranchName'], 'develop'))
-    steps:
-      - task: HelmDeploy@0
-        displayName: Helm rollback
-        inputs:
-          connectionType: 'Kubernetes Service Connection'
-          kubernetesServiceConnection: $(kubeCon)
-          namespace: $(namespace)
-          command: rollback
-          arguments: $(releaseName)
-          waitForExecution: true
+  - template: job-deploy.yml@templates
+    parameters:
+      dependsOn: docker_build
+      kubeCon: $(kubeCon)
+      namespace: $(namespace)
+      releaseName: $(releaseName)
+      deploymentEnvironment: $(deploymentEnvironment)
+      overrideValues: tag=$(tag)
+      pool:
+        ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+          name: $(poolName)
+        ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
+          vmImage: 'ubuntu-latest'

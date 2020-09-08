@@ -244,9 +244,38 @@ class GetMeasurementResponse:
 
 @dataclass
 class GetMeasurementListRequest:
+
+    # Offset from UTC in hours
+    utc_offset: int = field(metadata=dict(required=False, missing=0, data_key='utcOffset'))
+
     filters: MeasurementFilters = field(default=None)
     offset: int = field(default=0)
     limit: int = field(default=None)
+    order: str = field(default='begin', metadata=dict(validate=validate.OneOf(['begin', 'amount'])))
+    sort: str = field(default='asc', metadata=dict(validate=validate.OneOf(['asc', 'desc'])))
+
+    @post_load
+    def apply_time_offset(self, data, **kwargs):
+        """
+        Applies the request utcOffset to filters.begin and filters.begin_range
+        if they don't already have a UTC offset applied to them by the client.
+        """
+        tzinfo = timezone(timedelta(hours=data['utc_offset']))
+
+        if data['filters'].begin and data['filters'].begin.utcoffset() is None:
+            data['filters'].begin = \
+                data['filters'].begin.replace(tzinfo=tzinfo)
+
+        if data['filters'].begin_range:
+            if data['filters'].begin_range.begin.utcoffset() is None:
+                data['filters'].begin_range.begin = \
+                    data['filters'].begin_range.begin.replace(tzinfo=tzinfo)
+
+            if data['filters'].begin_range.end.utcoffset() is None:
+                data['filters'].begin_range.end = \
+                    data['filters'].begin_range.end.replace(tzinfo=tzinfo)
+
+        return data
 
 
 @dataclass

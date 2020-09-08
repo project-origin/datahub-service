@@ -173,7 +173,8 @@ def test__MeasurementImportController__measurement_exists(gsrn, begin, exists, s
 @patch('datahub.measurements.importing.FIRST_MEASUREMENT_TIME', new=datetime(2019, 1, 1, 0, 0, tzinfo=timezone.utc))
 @patch('datahub.measurements.importing.LAST_MEASUREMENT_TIME', new=datetime(2019, 2, 1, 0, 0, tzinfo=timezone.utc))
 @patch('datahub.measurements.importing.eloverblik_service')
-def test__MeasurementImportController__integration(eloverblik_service, seeded_session):
+@patch('datahub.measurements.importing.energtype_service')
+def test__MeasurementImportController__integration(energtype_service, eloverblik_service, seeded_session):
 
     def __get_time_series(gsrn, date_from, date_to):
         eloverblik_response_schema = md.class_schema(GetTimeSeriesResponse)
@@ -187,6 +188,7 @@ def test__MeasurementImportController__integration(eloverblik_service, seeded_se
 
     # Arrange
     eloverblik_service.get_time_series.side_effect = __get_time_series
+    energtype_service.get_emissions.return_value = {}
 
     uut = MeasurementImportController()
 
