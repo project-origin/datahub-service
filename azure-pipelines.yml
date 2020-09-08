@@ -42,7 +42,7 @@ jobs:
       deploymentEnvironment: $(deploymentEnvironment)
       overrideValues: tag=$(tag)
       pool:
-        ${{ if ne(variables['poolName'], '') }}:
+        ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
           name: $(poolName)
-        ${{ if eq(variables['poolName'], '') }}:
+        ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
           vmImage: 'ubuntu-latest'
