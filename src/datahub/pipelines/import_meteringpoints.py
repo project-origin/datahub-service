@@ -172,6 +172,7 @@ def import_energy_type(task, subject, gsrn, session):
     # Get MeteringPoint from DB
     try:
         meteringpoint = MeteringPointQuery(session) \
+            .is_active() \
             .has_gsrn(gsrn) \
             .is_production() \
             .one()
@@ -226,6 +227,7 @@ def invoke_webhook(task, subject, gsrn, subscription_id, session):
     # Get MeteringPoint from DB
     try:
         meteringpoint = MeteringPointQuery(session) \
+            .is_active() \
             .has_gsrn(gsrn) \
             .one()
     except orm.exc.NoResultFound:

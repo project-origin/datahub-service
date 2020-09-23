@@ -86,6 +86,16 @@ class MeasurementQuery(object):
 
         return self.__class__(self.session, q)
 
+    def is_active(self):
+        """
+        Only include measurements from meteringpoints which are active.
+
+        :rtype: MeasurementQuery
+        """
+        return self.__class__(self.session, self.q.filter(
+            MeteringPoint.active.is_(True),
+        ))
+
     def belongs_to(self, sub):
         """
         Only include measurements which belong to the user identified by

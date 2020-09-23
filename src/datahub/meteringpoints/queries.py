@@ -42,6 +42,16 @@ class MeteringPointQuery(object):
     def __getattr__(self, name):
         return getattr(self.q, name)
 
+    def is_active(self):
+        """
+        Only include meteringpoints which are active.
+
+        :rtype: MeteringPointQuery
+        """
+        return MeteringPointQuery(self.session, self.q.filter(
+            MeteringPoint.active.is_(True),
+        ))
+
     def belongs_to(self, sub):
         """
         Only include meteringpoints which belong to the user identified by

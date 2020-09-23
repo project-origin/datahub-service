@@ -24,6 +24,7 @@ class MeteringPoint(ModelBase):
 
     id = sa.Column(sa.Integer(), primary_key=True, index=True)
     created = sa.Column(sa.DateTime(timezone=True), server_default=sa.func.now())
+    active = sa.Column(sa.Boolean(), nullable=False, default=True)
 
     sub = sa.Column(sa.String(), index=True, nullable=False)
     gsrn = sa.Column(sa.String(), index=True, nullable=False)

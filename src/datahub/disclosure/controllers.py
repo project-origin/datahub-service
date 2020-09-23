@@ -302,6 +302,7 @@ class CreateDisclosure(Controller):
         :rtype: MeteringPoint
         """
         meteringpoint = MeteringPointQuery(session) \
+            .is_active() \
             .belongs_to(sub) \
             .has_gsrn(gsrn) \
             .is_consumption() \
