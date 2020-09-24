@@ -25,24 +25,25 @@ pool:
   vmImage: 'ubuntu-latest'
 
 jobs:
-  - template: job-run-pytest.yml@templates
-
-  - template: job-docker-build.yml@templates
-    parameters:
-      dependsOn: run_pytest
-      imageName: $(imageName)
-      tag: $(tag)
-      
-  - template: job-deploy.yml@templates
-    parameters:
-      dependsOn: docker_build
-      kubeCon: $(kubeCon)
-      namespace: $(namespace)
-      releaseName: $(releaseName)
-      deploymentEnvironment: $(deploymentEnvironment)
-      overrideValues: tag=$(tag)
-      pool:
-        ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
-          name: $(poolName)
-        ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
-          vmImage: 'ubuntu-latest'
+  - template: job-build-test-push.yml@templates
+#  - template: job-run-pytest.yml@templates
+#
+#  - template: job-docker-build.yml@templates
+#    parameters:
+#      dependsOn: run_pytest
+#      imageName: $(imageName)
+#      tag: $(tag)
+#
+#  - template: job-deploy.yml@templates
+#    parameters:
+#      dependsOn: docker_build
+#      kubeCon: $(kubeCon)
+#      namespace: $(namespace)
+#      releaseName: $(releaseName)
+#      deploymentEnvironment: $(deploymentEnvironment)
+#      overrideValues: tag=$(tag)
+#      pool:
+#        ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+#          name: $(poolName)
+#        ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
+#          vmImage: 'ubuntu-latest'
