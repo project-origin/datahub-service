@@ -10,7 +10,7 @@ WORKDIR /app
 RUN apt-get update
 RUN apt-get install pkg-config libsecp256k1-dev libzmq3-dev -y
 RUN pip3 install --upgrade setuptools pip pipenv
-RUN pipenv sync
+RUN pipenv sync -d
 RUN chmod +x /app/entrypoint.web.sh
 RUN chmod +x /app/entrypoint.beat.sh
 RUN chmod +x /app/entrypoint.worker.sh
