@@ -26,6 +26,9 @@ pool:
 
 jobs:
   - template: job-build-test-push.yml@templates
+    parameters:
+      imageName: $(imageName)
+      tag: $(tag)
 #  - template: job-run-pytest.yml@templates
 #
 #  - template: job-docker-build.yml@templates
