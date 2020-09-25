@@ -18,7 +18,7 @@ variables:
   - name: releaseName
     value: 'datahub-service'
   - name: imageName
-    value: 'projectorigin/$(releaseName)'
+    value: 'projectorigin/$(releaseName):$(tag)'
   - template: vars.yml@templates
 
 pool:
