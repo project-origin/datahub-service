@@ -93,7 +93,7 @@ class MeasurementQuery(object):
         :rtype: MeasurementQuery
         """
         return self.__class__(self.session, self.q.filter(
-            MeteringPoint.active.is_(True),
+            MeteringPoint.disabled.is_(False),
         ))
 
     def belongs_to(self, sub):

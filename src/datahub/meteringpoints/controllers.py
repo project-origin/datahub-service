@@ -99,6 +99,6 @@ class DisableMeteringpoints(Controller):
         """
         MeteringPointQuery(session) \
             .belongs_to(token.subject) \
-            .update({'active': False})
+            .update({'disabled': True})
 
         return True
