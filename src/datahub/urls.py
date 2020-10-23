@@ -15,13 +15,13 @@ urls = (
     ('/onboarding/get-url', auth.GetOnboardingUrl()),
     ('/onboarding/callback', auth.OnboardingCallback()),
 
-
     # Technologies
     ('/technologies', technology.GetTechnologies()),
 
     # MeteringPoints
     ('/meteringpoints', meteringpoints.GetMeteringPoints()),
     ('/meteringpoints/set-key', meteringpoints.SetKey()),
+    ('/meteringpoints/disable', meteringpoints.DisableMeteringpoints()),
 
     # GGOs
     ('/ggo', ggo.GetGgoList()),

@@ -70,6 +70,7 @@ class Disclosure(ModelBase):
         :rtype: MeasurementQuery
         """
         return MeasurementQuery(Session.object_session(self)) \
+            .is_active() \
             .has_any_gsrn(self.get_gsrn()) \
             .begins_within(self.date_range.to_datetime_range()) \
             .is_published()

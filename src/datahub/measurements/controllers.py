@@ -43,6 +43,7 @@ class GetMeasurement(Controller):
         :rtype: GetMeasurementResponse
         """
         measurement = MeasurementQuery(session) \
+            .is_active() \
             .belongs_to(token.subject) \
             .is_published() \
             .is_type(self.typ) \
@@ -76,6 +77,7 @@ class GetMeasurementList(Controller):
         :rtype: GetMeasurementListResponse
         """
         query = MeasurementQuery(session) \
+            .is_active() \
             .belongs_to(token.subject) \
             .is_published()
 
@@ -134,6 +136,7 @@ class GetBeginRange(Controller):
         :rtype: GetBeginRangeResponse
         """
         query = MeasurementQuery(session) \
+            .is_active() \
             .belongs_to(token.subject) \
             .is_published()
 
@@ -167,6 +170,7 @@ class GetMeasurementSummary(Controller):
         :rtype: GetMeasurementSummaryResponse
         """
         query = MeasurementQuery(session) \
+            .is_active() \
             .belongs_to(token.subject) \
             .is_published()
 

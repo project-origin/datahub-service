@@ -214,7 +214,9 @@ def get_distinct_gsrn(task, session=None):
     }
 
     try:
-        meteringpoints = MeteringPointQuery(session).all()
+        meteringpoints = MeteringPointQuery(session) \
+            .is_active() \
+            .all()
     except Exception as e:
         logger.exception('Failed to load MeteringPoints from database, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
@@ -271,6 +273,7 @@ def import_measurements(task, subject, gsrn, session):
     # Load MeteringPoint from DB
     try:
         meteringpoint = MeteringPointQuery(session) \
+            .is_active() \
             .has_gsrn(gsrn) \
             .one()
     except orm.exc.NoResultFound:
@@ -337,6 +340,7 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
     # Get Measurement from DB
     try:
         measurement = MeasurementQuery(session) \
+            .is_active() \
             .has_id(measurement_id) \
             .one()
     except orm.exc.NoResultFound:
@@ -461,6 +465,7 @@ def update_measurement_status(task, subject, gsrn, measurement_id):
         Updates published status as an atomic operation
         """
         measurement = MeasurementQuery(session) \
+            .is_active() \
             .has_id(measurement_id) \
             .one()
 
@@ -508,6 +513,7 @@ def invoke_on_measurement_published_webhook(task, subject, gsrn, measurement_id,
     # Get Measurement from database
     try:
         measurement = MeasurementQuery(session) \
+            .is_active() \
             .has_id(measurement_id) \
             .one()
     except orm.exc.NoResultFound:
@@ -569,6 +575,7 @@ def invoke_on_ggo_issued_webhook(task, subject, gsrn, measurement_id, subscripti
     # Get Measurement from database
     try:
         measurement = MeasurementQuery(session) \
+            .is_active() \
             .has_id(measurement_id) \
             .one()
     except orm.exc.NoResultFound:

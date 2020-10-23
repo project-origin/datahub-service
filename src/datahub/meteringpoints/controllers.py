@@ -26,6 +26,7 @@ class GetMeteringPoints(Controller):
         :rtype: GetMeteringPointsResponse
         """
         meteringpoints = MeteringPointQuery(session) \
+            .is_active() \
             .belongs_to(token.subject) \
             .all()
 
@@ -73,8 +74,31 @@ class SetKey(Controller):
         :param sqlalchemy.orm.Session session:
         """
         meteringpoint = MeteringPointQuery(session) \
+            .is_active() \
             .belongs_to(sub) \
             .has_gsrn(gsrn) \
             .one()
 
         meteringpoint.ledger_extended_key = key
+
+
+class DisableMeteringpoints(Controller):
+    """
+    Disables all meteringpoints belonging to the subject, causing them
+    not to have any further measurements imported in the future, and be
+    hidden from APIs.
+    """
+    @require_oauth('meteringpoints.read')
+    @inject_token
+    @atomic
+    def handle_request(self, token, session):
+        """
+        :param Token token:
+        :param sqlalchemy.orm.Session session:
+        :rtype: bool
+        """
+        MeteringPointQuery(session) \
+            .belongs_to(token.subject) \
+            .update({'disabled': True})
+
+        return True
