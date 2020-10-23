@@ -4,11 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+
+[packages]
 pytest = "*"
 waitress = "*"
 testcontainers = "*"
-
-[packages]
 gunicorn = "*"
 gevent = "*"
 flask = "*"
@@ -21,7 +21,7 @@ marshmallow = "*"
 marshmallow_dataclass = "*"
 marshmallow_enum = "*"
 requests = "*"
-celery = "*"
+celery = "==4.4.6"
 redis = "*"
 python-dateutil = "*"
 authlib = "*"
