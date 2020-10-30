@@ -36,6 +36,13 @@ spec:
               value: "{{ .Values.workers }}"
             - name: WORKER_CONNECTIONS
               value: "{{ .Values.workerconnections }}"
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "250m"
+            limits:
+              memory: "1500Mi"
+              cpu: "1000m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -70,6 +77,13 @@ spec:
           env:
             - name: SERVICE_NAME
               value: DataHubServiceBeat
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "250Mi"
+              cpu: "500m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -106,6 +120,13 @@ spec:
               value: DataHubServiceWorker
             - name: CONCURRENCY
               value: "{{ .Values.concurrency }}"
+          resources:
+            requests:
+              memory: "1000Mi"
+              cpu: "1000m"
+            limits:
+              memory: "2000Mi"
+              cpu: "2000m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -142,3 +163,10 @@ spec:
               value: DataHubServiceDisclosure
             - name: CONCURRENCY
               value: "{{ .Values.concurrency }}"
+          resources:
+            requests:
+              memory: "200Mi"
+              cpu: "250m"
+            limits:
+              memory: "500Mi"
+              cpu: "1000m"
