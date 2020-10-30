@@ -2,6 +2,7 @@ trigger:
   - master
   - preprod
   - test
+  - demo
   - develop
 
 pr: none
