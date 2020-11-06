@@ -2,6 +2,7 @@ trigger:
   - master
   - preprod
   - test
+  - demo
   - develop
 
 pr: none
@@ -39,7 +40,7 @@ jobs:
       deploymentEnvironment: $(deploymentEnvironment)
       overrideValues: tag=$(tag)
       pool:
-        ${{ if eq(variables['Build.SourceBranchName'], 'master') }}:
+        ${{ if or(eq(variables['Build.SourceBranchName'], 'master'), eq(variables['Build.SourceBranchName'], 'demo')) }}:
           name: $(poolName)
         ${{ if ne(variables['Build.SourceBranchName'], 'master') }}:
           vmImage: 'ubuntu-latest'
