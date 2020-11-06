@@ -361,7 +361,6 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
             # A measurement already exists on the address
             # ie. it has already been submitted
             logger.info('Measurement already exists on ledger, skipping...', extra=__log_extra)
-            task.request.callbacks[:] = []
             task.request.chain = None
             return
         else:
