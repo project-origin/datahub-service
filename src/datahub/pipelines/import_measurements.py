@@ -349,6 +349,25 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
         logger.exception('Failed to load Measurement from database, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
 
+    # Does the measurement already exist on the ledger?
+    # Ie. trying to submit it a second time?
+    try:
+        ledger.get_measurement(measurement.address)
+    except ols.LedgerConnectionError as e:
+        logger.exception('Failed to check if measurement already exists, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
+    except ols.LedgerException as e:
+        if e.code == 75:
+            # A measurement already exists on the address
+            # ie. it has already been submitted
+            logger.info('Measurement already exists on ledger, skipping...', extra=__log_extra)
+            task.request.callbacks[:] = []
+            task.request.chain = None
+            return
+        else:
+            logger.exception('Failed to check if measurement already exists, retrying...', extra=__log_extra)
+            raise task.retry(exc=e)
+
     # Build batch
     batch = measurement.build_batch()
 
