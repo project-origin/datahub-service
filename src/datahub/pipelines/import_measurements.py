@@ -119,19 +119,23 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     :rtype: celery.chain
     """
     tasks = [
-        # Submit Batch with Measurement (and Ggo if PRODUCTION)
-        submit_to_ledger.si(
-            subject=meteringpoint.sub,
-            gsrn=meteringpoint.gsrn,
-            measurement_id=measurement.id,
-        ),
+        #
+        # COMMENT IN THESE LINES TO ENABLE PUBLISHING TO LEDGER:
+        #
 
-        # Poll for Batch status
-        poll_batch_status.s(
-            subject=meteringpoint.sub,
-            gsrn=meteringpoint.gsrn,
-            measurement_id=measurement.id,
-        ),
+        # # Submit Batch with Measurement (and Ggo if PRODUCTION)
+        # submit_to_ledger.si(
+        #     subject=meteringpoint.sub,
+        #     gsrn=meteringpoint.gsrn,
+        #     measurement_id=measurement.id,
+        # ),
+        #
+        # # Poll for Batch status
+        # poll_batch_status.s(
+        #     subject=meteringpoint.sub,
+        #     gsrn=meteringpoint.gsrn,
+        #     measurement_id=measurement.id,
+        # ),
 
         # Update Measurement.published status attribute
         update_measurement_status.si(
