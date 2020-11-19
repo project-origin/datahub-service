@@ -49,7 +49,7 @@ class MeteringPointQuery(object):
         :rtype: MeteringPointQuery
         """
         return MeteringPointQuery(self.session, self.q.filter(
-            MeteringPoint.active.is_(True),
+            MeteringPoint.disabled.is_(False),
         ))
 
     def belongs_to(self, sub):

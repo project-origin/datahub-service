@@ -119,19 +119,23 @@ def build_submit_measurement_pipeline(measurement, meteringpoint, session):
     :rtype: celery.chain
     """
     tasks = [
-        # Submit Batch with Measurement (and Ggo if PRODUCTION)
-        submit_to_ledger.si(
-            subject=meteringpoint.sub,
-            gsrn=meteringpoint.gsrn,
-            measurement_id=measurement.id,
-        ),
+        #
+        # COMMENT IN THESE LINES TO ENABLE PUBLISHING TO LEDGER:
+        #
 
-        # Poll for Batch status
-        poll_batch_status.s(
-            subject=meteringpoint.sub,
-            gsrn=meteringpoint.gsrn,
-            measurement_id=measurement.id,
-        ),
+        # # Submit Batch with Measurement (and Ggo if PRODUCTION)
+        # submit_to_ledger.si(
+        #     subject=meteringpoint.sub,
+        #     gsrn=meteringpoint.gsrn,
+        #     measurement_id=measurement.id,
+        # ),
+        #
+        # # Poll for Batch status
+        # poll_batch_status.s(
+        #     subject=meteringpoint.sub,
+        #     gsrn=meteringpoint.gsrn,
+        #     measurement_id=measurement.id,
+        # ),
 
         # Update Measurement.published status attribute
         update_measurement_status.si(
@@ -348,6 +352,24 @@ def submit_to_ledger(task, subject, gsrn, measurement_id, session):
     except Exception as e:
         logger.exception('Failed to load Measurement from database, retrying...', extra=__log_extra)
         raise task.retry(exc=e)
+
+    # Does the measurement already exist on the ledger?
+    # Ie. trying to submit it a second time?
+    try:
+        ledger.get_measurement(measurement.address)
+    except ols.LedgerConnectionError as e:
+        logger.exception('Failed to check if measurement already exists, retrying...', extra=__log_extra)
+        raise task.retry(exc=e)
+    except ols.LedgerException as e:
+        if e.code == 75:
+            # A measurement already exists on the address
+            # ie. it has already been submitted
+            logger.info('Measurement already exists on ledger, skipping...', extra=__log_extra)
+            task.request.chain = None
+            return
+        else:
+            logger.exception('Failed to check if measurement already exists, retrying...', extra=__log_extra)
+            raise task.retry(exc=e)
 
     # Build batch
     batch = measurement.build_batch()
