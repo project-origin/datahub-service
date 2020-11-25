@@ -156,6 +156,7 @@ class MeasurementImportController(object):
         :rtype: datetime
         """
         latest_begin = MeasurementQuery(session) \
+            .is_active() \
             .has_gsrn(meteringpoint.gsrn) \
             .get_last_measured_begin()
 
@@ -198,6 +199,7 @@ class MeasurementImportController(object):
         :rtype: bool
         """
         count = MeasurementQuery(session) \
+            .is_active() \
             .has_gsrn(measurement.gsrn) \
             .begins_at(measurement.begin) \
             .count()
