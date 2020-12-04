@@ -11,6 +11,7 @@ SERVICE_NAME = 'DataHubService'
 SECRET = None
 PROJECT_URL = None
 CORS_ORIGINS = None
+LOG_LEVEL = None
 
 
 # -- Database ----------------------------------------------------------------
