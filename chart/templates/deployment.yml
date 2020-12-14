@@ -12,7 +12,7 @@ spec:
       labels:
         app: datahub-deployment
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 300
       containers:
         - name: datahub-container
           image: projectorigin/datahub-service:{{ .Values.tag }}
