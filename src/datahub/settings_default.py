@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import date, datetime, timezone, timedelta
 
 
@@ -12,6 +13,13 @@ SERVICE_NAME = os.environ['SERVICE_NAME']
 SECRET = os.environ['SECRET']
 PROJECT_URL = os.environ['PROJECT_URL']
 CORS_ORIGINS = os.environ['CORS_ORIGINS']
+
+_LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')
+
+if hasattr(logging, _LOG_LEVEL):
+    LOG_LEVEL = getattr(logging, _LOG_LEVEL)
+else:
+    raise ValueError('Invalid LOG_LEVEL: %s' % _LOG_LEVEL)
 
 
 # -- Database ----------------------------------------------------------------
