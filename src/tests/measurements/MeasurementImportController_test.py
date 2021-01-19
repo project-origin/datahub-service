@@ -31,6 +31,8 @@ meteringpoint1 = MeteringPoint(
     gsrn=gsrn1,
     type=MeasurementType.PRODUCTION,
     sector='DK1',
+    technology_code='T010101',
+    fuel_code='F01010101',
 )
 
 meteringpoint2 = MeteringPoint(
@@ -38,6 +40,8 @@ meteringpoint2 = MeteringPoint(
     gsrn=gsrn2,
     type=MeasurementType.CONSUMPTION,
     sector='DK1',
+    technology_code='T010101',
+    fuel_code='F01010101',
 )
 
 existing_measurement = Measurement(
