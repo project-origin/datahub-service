@@ -126,7 +126,7 @@ class TimeSeriesResult:
     class Meta:
         unknown = EXCLUDE
 
-    document: TimeSeriesDocument = field(metadata=dict(data_key='MyEnergyData_MarketDocument'))
+    document: TimeSeriesDocument = field(metadata=dict(data_key='MyEnergyData_MarketDocument', allow_none=True))
 
 
 @dataclass
