@@ -65,7 +65,7 @@ class MeasurementImporter(object):
         :param list[e.TimeSeriesResult] documents:
         :rtype: collections.abc.Iterable[Measurement]
         """
-        for d in documents:
+        for d in (_ for _ in documents if _.document is not None):
             for time_series in d.document.time_series:
                 unit = time_series.unit
 
