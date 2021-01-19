@@ -107,7 +107,10 @@ class MeasurementImportController(object):
         session.add_all(measurements)
 
         # Issue GGOs if necessary
-        if meteringpoint.is_producer():
+        if (meteringpoint.is_producer()
+                and meteringpoint.technology_code
+                and meteringpoint.fuel_code):
+
             emissions = self.get_emissions(meteringpoint.gsrn)
 
             session.add_all((
