@@ -6,7 +6,7 @@ from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
 from .tasks import Task, Retry
-from .settings import SERVICE_NAME, AZURE_APP_INSIGHTS_CONN_STRING
+from .settings import SERVICE_NAME, AZURE_APP_INSIGHTS_CONN_STRING, LOG_LEVEL
 
 
 logger = logging.getLogger(SERVICE_NAME)
@@ -28,6 +28,7 @@ if AZURE_APP_INSIGHTS_CONN_STRING:
     )
     handler.add_telemetry_processor(__telemetry_processor)
     logger.addHandler(handler)
+    logger.setLevel(LOG_LEVEL)
 
     exporter = AzureExporter(connection_string=AZURE_APP_INSIGHTS_CONN_STRING)
     exporter.add_telemetry_processor(__telemetry_processor)

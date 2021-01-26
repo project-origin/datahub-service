@@ -65,7 +65,7 @@ class MeasurementImporter(object):
         :param list[e.TimeSeriesResult] documents:
         :rtype: collections.abc.Iterable[Measurement]
         """
-        for d in documents:
+        for d in (_ for _ in documents if _.document is not None):
             for time_series in d.document.time_series:
                 unit = time_series.unit
 
@@ -107,7 +107,10 @@ class MeasurementImportController(object):
         session.add_all(measurements)
 
         # Issue GGOs if necessary
-        if meteringpoint.is_producer():
+        if (meteringpoint.is_producer()
+                and meteringpoint.technology_code
+                and meteringpoint.fuel_code):
+
             emissions = self.get_emissions(meteringpoint.gsrn)
 
             session.add_all((

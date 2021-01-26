@@ -6,7 +6,7 @@ from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 
 from .urls import urls
 from .logger import handler, exporter, sampler
-from .settings import SECRET, CORS_ORIGINS, SERVICE_NAME
+from .settings import SECRET, CORS_ORIGINS, SERVICE_NAME, LOG_LEVEL
 from .tasks import celery_app
 
 # Import models here for SQLAlchemy to detech them
@@ -28,8 +28,9 @@ app.config['PROPAGATE_EXCEPTIONS'] = False
 cors = CORS(app, resources={r'*': {'origins': CORS_ORIGINS}})
 
 if handler:
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(LOG_LEVEL)
     app.logger.addHandler(handler)
+
 
 if exporter and sampler:
     opencensus = FlaskMiddleware(app, sampler=sampler, exporter=exporter)
